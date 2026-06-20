@@ -2,7 +2,7 @@
 # Deployed at: Opal Energy
 #
 # PURPOSE: Cross-check before iterating any tool. Confirms what has and has not
-# been verified in AutoCAD LT 2027. All forked tools are considered NON-WORKING
+# been verified in AutoCAD 2027. All forked tools are considered NON-WORKING
 # until confirmed in a live drawing session.
 #
 # UPDATE RULE: After confirming a tool works in AutoCAD, drop "untested" tag.
@@ -18,14 +18,16 @@
 #   LWPOLYLINE filters find ZERO modules on these drawings.
 #   Correct ssget filter: (0 . "*POLYLINE")  -- matches both types.
 #   VERTEX group 10 → (trans pt 2 0) to WCS, same as LWPOLYLINE group 10.
-#   Canonical implementation: _odc-poly-pts / _odc-poly-bbox in odc/odc-1.09.lsp.
-#   Tools with known LWPOLYLINE-only bug: O-SET v1.0, O-COUNT v1.0, O-JUMP v1.0.
+#   Canonical (live, working) reader: _oset-poly-pts in oset/oset-1.11.lsp
+#   (LWPOLYLINE group-10 + heavyweight-POLYLINE VERTEX walk, OCS->WCS trans pt ent 0).
+#   O-SET is FIXED (1.04+). Tools that still have the LWPOLYLINE-only bug are all
+#   dormant: O-COUNT v1.0, O-JUMP v1.0.
 #
 # FORMAT:
 #   [x.xx]           = version introduced
 #   [x.xx untested]  = written but NOT yet verified in AutoCAD
 #   [x.xx broken]    = tested and known to fail (describe issue)
-#   [x.xx works]     = confirmed working in AutoCAD LT 2027
+#   [x.xx works]     = confirmed working in AutoCAD 2027
 # ============================================================
 
 
@@ -37,12 +39,13 @@ Latest confirmed: 1.03 works
 ### Current Features
 - [1.04 untested] Relocatable root: _oload-root returns *o-suite-root* when bound (set by the deploy bootstrap), else the original hardcoded dev path. Enables the ApplicationPlugins bundle install.
 - [1.04 untested] Auto-run of O-SET on load is now suppressed in quiet mode, so silent startup (bootstrap) never opens a calibration prompt.
+- [1.04 works] On a manual (non-quiet) load O-SET is ALWAYS re-run -- dropped the "already calibrated -- skip" branch and the stale "box-select any 2x2+ block" prompt (O-SET is click-free now), so geometry recalibrates every OLOAD. NOTE: OLOAD does not reload the loader itself (oload/ is on the skip list), so editing oload-1.04 needs a manual (load "...oload-1.04.lsp") or an AutoCAD restart to take effect.
 - [1.04 untested] Quiet load line and banner de-branded; points users to OHELP / O.
 - [1.0 works] Loads oconfig first (layer globals), then all tool subfolders in Opal root
 - [1.0 works] Detects highest-versioned .lsp per folder via ASCII lexicographic sort on filename
 - [1.0 works] Prints [OK] / [skip] per tool with UPDATE flag when version changes between loads
 - [1.0 works] Tracks loaded versions in *oload-versions* alist: ((folder-name . "x.xx") ...)
-- [1.0 works] Auto-runs O-SET if *oset-mod-w* is nil or zero after all tools are loaded
+- [1.04 works] Auto-runs O-SET after all tools load on a manual (non-quiet) load -- now unconditional (was: only if *oset-mod-w* nil/zero)
 - [1.01 works] Skips ".", "..", tools/ from directory scan
 - [1.02 works] *oload-quiet* T suppresses per-tool output (used by acad.lsp auto-loader)
 - [1.02 works] Quiet mode: single summary line "O-Suite loaded -- N tools. O-REF for help."
@@ -61,32 +64,88 @@ Latest confirmed: 1.03 works
 
 ---
 
-## O-SET
-Commands: O-SET, OSET
-File: oset/oset-1.0.lsp
-Latest confirmed: 1.0 broken (LWPOLYLINE-only; Opal modules are heavyweight POLYLINE)
+## OMODE
+Commands: O-MODE, OMODE
+File: omode/omode-1.02.lsp
+Latest confirmed: 1.0 works (live DEV->BUNDLE->DEV verified, git summary shown, no O-SET prompt)
 
 ### Current Features
-- [1.0 broken] Box-select any 2x2+ grid of modules; derives mod-W, mod-H, gap-X, gap-Y from bboxes
-- [1.0 broken] Module filter: 4-vertex LWPOLYLINE only — finds ZERO modules on Opal drawings
-- [1.0 works] Layer denylist function _oset-non-module-layer: substring match on 18 known tool layers
-  (PV-STRINGING, PV-DC-PATH, PV-HOMERUN, PV-CABLE-JUMP, PV-TAGS, PV-SCHEDULES, PV-LAYOUT,
-  PV-XDATA, E-CONDUIT, G-ANNO-TEXT, DC-ARROW, LABEL, TABLE, CALLOUT, STRUCTURE, etc.)
-  -- this function is reused by O-DC and other tools, so it does work even if O-SET itself fails
-- [1.0 works] Requires minimum 4 accepted entities with ≥2 distinct X-centers and ≥2 distinct Y-centers
-- [1.0 works] Center dedup tolerance: 1.0 drawing units (hardcoded)
-- [1.0 works] Gap formula: pitch = distance between adjacent row/col centers; gap = pitch - module-dimension
-- [1.0 works] Prints calibration summary to console on success
+- [1.02 untested] Public hooks omode:to-bundle / omode:to-dev -- thin wrappers over the internal
+  switch helpers (no getkword prompt) so the O toolbox "Switch to Bundle" button can flip mode.
+  omode:to-bundle remembers the source first so a later BUNDLE->DEV can find it.
+- [1.0 works] Reports current load mode: DEV (loading from the live source tree) vs
+  BUNDLE (loading from a frozen prod-test copy or an installed plugin copy). Detection: the
+  current *o-suite-root* contains "OpalTools-prodtest" or "ApplicationPlugins" → BUNDLE, else DEV.
+- [1.0 works] OMODE getkword [Dev/Bundle] <Report>. Report (default) just prints mode + both
+  suite roots. Dev/Bundle flip the RUNNING session by repointing *o-suite-root* / *lk-suite-root*
+  and reloading each suite's loader (O-LOAD + the LayerKit loader) from the new root. _omode-reload
+  forces *oload-quiet*/*lkload-quiet* ON during the reload so the switch never triggers O-LOAD's
+  auto-O-SET calibration prompt (restored after).
+- [1.0 works] BUNDLE flip is SESSION-ONLY by design — it never rewrites the installed startup
+  pointer, so DEV stays the permanent startup mode and a restart returns to DEV automatically.
+- [1.0 works] BUNDLE flip runs ..\opal-cad-installer\Snapshot-Bundle.ps1 (via startapp), which
+  robocopies opal-tools + layer-kit into %LOCALAPPDATA%\Autodesk\OpalTools-prodtest using the same
+  exclusions as Package.ps1 (+ omode). LISP polls %TEMP%\omode-done.flag (DELAY 200ms, ~20s cap)
+  then prints %TEMP%\omode-status.txt.
+- [1.01 untested] CMDECHO forced off around the DELAY poll so the wait does not echo
+  "_.DELAY ... 200" repeatedly to the command line (restored after).
+- [1.0 works] Snapshot-Bundle.ps1 prints what is NOT on GitHub (uncommitted file count +
+  unpushed commit count) for awareness only. OMODE never commits/pushes.
+- [1.0 works] Source tree location remembered in *o-source-root* / *lk-source-root* and in
+  registry HKCU\Software\Ocotillo\OpalTools\SourceRoot (captured whenever observed in DEV) so a
+  BUNDLE->DEV flip can find the source.
+- DEV-ONLY: omode is excluded from the packaged release (Package.ps1 /XD, Snapshot-Bundle.ps1).
+  The command stays defined in-session after a BUNDLE flip, so you can still OMODE back to DEV.
+
+### Assumptions / constraints
+- Prod-test copy path is fixed: %LOCALAPPDATA%\Autodesk\OpalTools-prodtest\ (must match between
+  omode.lsp and Snapshot-Bundle.ps1).
+- The live-reload + startapp + DELAY-poll path needs LIVE GUI verification (cannot be exercised
+  headless). Report/detection/source-resolution helpers are headless-testable.
+
+---
+
+## O-SET
+Commands: O-SET, OSET
+File: oset/oset-1.11.lsp
+Latest confirmed: 1.11 works (live on an Opal drawing: 287 polylines -> 254 4-corner -> 223 modules;
+module 44.41 x 89.69; Gap X 14.5 + 13.5 (two spacings), Gap Y 0.26)
+
+### Current Features
+- [1.11 works] FULLY AUTOMATIC -- no click. ssget "X" (0 . "*POLYLINE") on *ocfg-layer-modules*
+  ("PV-MODS"); corners via _oset-poly-pts (LWPOLYLINE group-10 + heavyweight-POLYLINE VERTEX walk,
+  OCS->WCS (trans pt ent 0)). Fixes the 1.0 LWPOLYLINE-only bug -- works on Opal POLYLINE modules.
+- [1.04 works] Defensive: every entity read is wrapped in vl-catch-all-apply, and each corner is
+  validated numeric; a bad/odd polyline (missing group 10, non-numeric corner) is skipped, never
+  fatal (was the "numberp: nil" crash). If nothing is usable it prints the first entity's type +
+  corner count to diagnose unexpected geometry.
+- [1.08 works] Module footprint = the MODE of W x H over all 4-corner polylines (robust to a few
+  odd sizes). Then keeps ONLY polylines within 5% of that footprint and ignores the rest -- this
+  handles non-module clutter on PV-MODS (the live drawing carries ~31 non-module objects).
+  Reports "Matching module footprint (w x h): N (ignored M non-module object(s))".
+- [1.05 works] Spacing is sampled from EVERY matched module (nearest in-band neighbour along each
+  module axis), not one reference module -- so an edge/row-end module can't yield a 2-pitch gap.
+- [1.09 works] Spacing = the MOST COMMON pitch (mode cluster), not the smallest. Gap = pitch - size.
+- [1.10 works] Per axis, detects 1 OR 2 spacings. A second spacing is reported only when a
+  distinct-but-close mode group exists: >= 8% support (ignores stray counts), refined means
+  >= 0.75 apart (a bin-boundary split isn't faked into two), and <= 1.6 apart (a 2-pitch jump is
+  not mistaken for a sibling spacing). On the live drawing X = 14.5 (common) + 13.5.
+- [1.11 works] Fast-scan readout: scan counts + X/Y pitch-cluster histograms print first (context),
+  then an aligned MODULE / GAP X / GAP Y summary block (2 decimals) prints last.
 
 ### Globals written
-- *oset-mod-w*  -- module width (X span of bbox)
-- *oset-mod-h*  -- module height (Y span of bbox)
-- *oset-gap-x*  -- horizontal gap between adjacent modules in same row
-- *oset-gap-y*  -- vertical gap between adjacent modules in same column
+- *oset-mod-w*  -- module width  (modal footprint; the module's own first-edge length)
+- *oset-mod-h*  -- module height (modal footprint)
+- *oset-gap-x*  -- primary (most common) gap along the width axis
+- *oset-gap-y*  -- primary gap along the height axis
+- *oset-gap-x2* -- secondary gap when a 2nd distinct spacing is detected on X, else nil
+- *oset-gap-y2* -- secondary gap on Y, else nil
 
-### Fix needed
-- Change module ssget filter from `(0 . "LWPOLYLINE")` to `(0 . "*POLYLINE")`
-- Add VERTEX sub-entity walk for POLYLINE type (reference _odc-poly-pts in odc-1.09)
+### Notes / assumptions
+- Module layer is "PV-MODS" (oconfig 1.03). The modal footprint defines "a module"; if PV-MODS
+  legitimately holds two module sizes, O-SET calibrates to the more common one and treats the
+  other as non-module. Pitch-cluster tol 0.5 keeps two real gaps (e.g. 58 vs 59) distinct;
+  footprint-match tol is 5%.
 
 ---
 
@@ -776,10 +835,42 @@ Latest confirmed: stub only
 
 ## O-LAUNCH
 Commands: O, OPAL, O-MENU
-File: olaunch/olaunch-1.01.lsp  (+ olaunch.dcl)
-Latest confirmed: 1.0 works (dialog opens live; logo rendered wrong)
+File: olaunch/olaunch-1.11.lsp  (+ olaunch.dcl, two main variants: opal_launcher / opal_launcher_dev)
+Latest confirmed: 1.08 works (dialog opens live, DEV/BUNDLE switch verified); 1.09-1.11 untested-live
 
 ### Current Features
+- [1.11 untested] "Switch to Bundle" button in the DEV toolbox Setup group (key MODESW, dev variant
+  only) flips to a prod-test via omode:to-bundle, then reopens the toolbox -- now the teammate
+  variant showing "BUNDLE (prod-test)". Variant + mode are recomputed each loop pass so the reopen
+  reflects the new mode. Guarded by _olaunch-have so a build without omode just prints a notice.
+  Return to DEV is by restart or OMODE (the button is one-way by design; prod-test = teammate view).
+- [1.10 untested] "Reload Tools" shows ONLY in DEV. DCL can't hide a tile at runtime, so there are
+  two main dialog variants -- opal_launcher (bundle, no Reload) and opal_launcher_dev (adds Reload)
+  -- and C:O picks one from _olaunch-mode, wiring the OLOAD button only in DEV.
+- [1.08 untested] Dropped the "Calibrate" (O-SET) button -- OLOAD auto-calibrates. "Reload Tools"
+  now runs the reload and REOPENS the main toolbox (done_dialog 20 -> C:O-LOAD -> loop) instead of
+  closing. (O-SET is still typable at the command line.)
+- [1.07 untested] FIX: "< Back" in the Layer Tools panel reliably returns to the main toolbox. It
+  was is_cancel + is_default, which made a click report as the default (status 1) and fall out of
+  the loop (escaping). Back is now key "back" wired to done_dialog 2; ESC also returns to main.
+- [1.10 untested] Mode shown by folding it into the version line as "v1.0  <middot>  DEV"
+  (middot = (chr 183), so source encoding can't garble it). 1.09's separate centered "mode" tile
+  floated awkwardly and was removed from both dcl dialogs. If a build renders the middot as
+  garbage, swap (chr 183) for " | " or " - ".
+- [1.09 untested] Shows the load mode in the toolbox: DEV / BUNDLE / BUNDLE (prod-test).
+  Detection is self-contained (_olaunch-mode reads *o-suite-root*: "OpalTools-prodtest" ->
+  prod-test, "ApplicationPlugins" -> BUNDLE, else DEV) so it works in a packaged install where
+  the omode tool is absent.
+- [1.04 untested] Layers group collapsed into ONE "Layer Tools >" sub-panel (Clean up + standardize
+  / Save standard / Apply standard / Build filters / Save filters) to kill the Standardize-vs-
+  Standards name clash. Buttons call C:LK-APPLY, lk:std-save/set, lk:filter-set/save directly.
+- [1.03 untested] Sub-menus: "Layer Standards" and "Layer Filters" open a sub-panel of buttons
+  (Save / Set ; Build / Save) wired to lk:std-save/lk:std-set and lk:filter-set/lk:filter-save,
+  so no command-line prompt. LK-APPLY button relabeled "Standardize Layers". Dispatch: main
+  done_dialog 10/11 -> sub-panel via new_dialog on the same loaded dcl id.
+- [1.02 untested] Trimmed toolbox: dropped DC String (O-DC), Force ByLayer (LK-BYLAYER), and
+  Clean Up Layers (LK-CLEANUP) from the menu; clarified the layer buttons (Clean Up + Standardize,
+  Layer Standards (Save / Set), Layer Group Filters). Those commands still load and are typable.
 - [1.01 untested] Logo polish: symmetric gold diamond + real cream disc (filled circle drawn
   row-by-row) split into thirds by two charcoal bars; cream uses ACI 255 so it renders on the
   dark badge (1.0 used ACI 7 which drew black/invisible). Logo tile narrowed (dcl width 16->10).
@@ -799,13 +890,16 @@ Latest confirmed: 1.0 works (dialog opens live; logo rendered wrong)
 - None (dialog only; no drawing geometry).
 
 ### Globals
-- *olaunch-ver*, *olaunch-map*, *olaunch-cmd*
+- *olaunch-ver*    -- version string shown in the dialog
+- *olaunch-main*   -- alist of (tile-key . "C:COMMAND") for the generic main buttons
+- *olaunch-layers* -- alist of (tile-key . "command") for the Layer Tools sub-panel
+- *olaunch-go*     -- the command chosen by a button; run after the dialog unloads
 
 ---
 
 ## OHELP
 Commands: OHELP, O-HELP
-File: ohelp/ohelp-1.0.lsp
+File: ohelp/ohelp-1.01.lsp  (1.01: list trimmed to match toolbox; O-DC/LK-BYLAYER archived, LK-CLEANUP no longer advertised)
 Latest confirmed: 1.0 untested
 
 ### Current Features

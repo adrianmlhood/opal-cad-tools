@@ -150,14 +150,7 @@
   ;; the session with a calibration prompt.
   (if (not *oload-quiet*)
     (if (not (null (atoms-family 1 (list "C:O-SET"))))
-      (if (and *oset-mod-w* (> *oset-mod-w* 0))
-        (prompt (strcat "\nO-SET already calibrated -- mod-w="
-                        (rtos *oset-mod-w* 2 2)
-                        "  mod-h=" (rtos *oset-mod-h* 2 2)
-                        ". Run O-SET to recalibrate."))
-        (progn
-          (prompt "\nO-SET required: box-select any 2x2+ block of modules to calibrate geometry.")
-          (C:O-SET)))
+      (C:O-SET)
       (prompt "\nO-SET not loaded -- run manually to calibrate module geometry.")))
   (princ))
 

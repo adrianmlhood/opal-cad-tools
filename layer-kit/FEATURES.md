@@ -51,7 +51,12 @@ Latest confirmed: 1.1 works (1.0 as PV-LOAD)
 
 ## LK-CLEANUP
 Commands: LK-CLEANUP, LK-APPLY
-File: lkcleanup/lkcleanup-1.44.lsp
+File: lkcleanup/lkcleanup-1.45.lsp
+- [1.45 untested-live] lk:get-saved-dir now VALIDATES the remembered ConfigDir exists
+  (vl-file-directory-p, trailing separator stripped) before trusting it. A stale path -- e.g.
+  the suite folder renamed LayerKit -> layer-kit -- now returns nil so lk:get-config-dir falls
+  back to DWGPREFIX instead of handing callers a dead directory (was: silent "Cannot write" on
+  CSV save). Old stale registry value was corrected out-of-band.
 - [1.44 untested-live] UNMATCHED LAYERS ARE NOW INTERACTIVE (not just reported). Clarification:
   LK-CLEANUP/LK-APPLY has NEVER auto-purged unapproved layers -- since pvcleanup-1.0 a layer
   matching no static/keyword mapping was Level-4 "unmatched", reported for manual assignment and

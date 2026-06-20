@@ -6,11 +6,11 @@
 ;; To load LayerKit every session, do ONE of:
 ;;   - APPLOAD -> Startup Suite -> add this file, OR
 ;;   - add this line to your single real acad.lsp / acaddoc.lsp:
-;;       (load "C:\\Users\\adria\\CAD\\Automations\\LayerKit\\layerkit-load.lsp")
+;;       (load "C:\\Users\\adria\\CAD\\Automations\\layer-kit\\layerkit-load.lsp")
 ;;
 ;; This file silently loads the whole LayerKit suite (quiet mode).
 
 (setq *lkload-quiet* T)
-(load "C:\\Users\\adria\\CAD\\Automations\\LayerKit\\lkload\\lkload-1.5.lsp")
+(load "C:\\Users\\adria\\CAD\\Automations\\layer-kit\\lkload\\lkload-1.6.lsp")
 (C:LK-LOAD)
 (setq *lkload-quiet* nil)

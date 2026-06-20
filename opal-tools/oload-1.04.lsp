@@ -1,13 +1,16 @@
-;; oload-1.03.lsp -- O-Suite Master Loader
+;; oload-1.04.lsp -- O-Suite Master Loader
 ;; Commands: O-LOAD (alias: OLOAD)
 ;; Loads oconfig first, then all tool subfolders in the suite root.
 ;; Set *oload-quiet* T before loading to suppress per-tool [OK] lines.
 ;; Tools in dormant/ are excluded from scan. Move to root to activate.
-;; v1.03
+;; v1.04 -- root is relocatable: returns *o-suite-root* when bound (set by
+;;          the plugin bootstrap), else the original hardcoded dev path.
 ;; ============================================================
 
 (defun _oload-root ()
-  "C:\\Users\\adria\\CAD\\Automations\\Opal\\")
+  (if (and (boundp (quote *o-suite-root*)) *o-suite-root*)
+    *o-suite-root*
+    "C:\\Users\\adria\\CAD\\Automations\\opal-tools\\"))
 
 ;; Folders excluded from tool scan (loaded separately, not tools, or OS entries)
 (defun _oload-skip-p (d / u)
@@ -123,25 +126,16 @@
         (setq loaded (append loaded (list lspfile))))))
 
   (if *oload-quiet*
-    (prompt (strcat "\nO-Suite loaded -- " (itoa (length loaded)) " tools. O-REF for help."))
+    (prompt (strcat "\nO-Suite loaded -- " (itoa (length loaded)) " tool(s). Type OHELP for the command list."))
     (progn
       (prompt "\n")
-      (prompt "\n--- O-Suite v1.0 ---")
-      (prompt "\nO-LOAD / OLOAD     reload all tools")
-      (prompt "\nO-SET  / OSET      calibrate module grid geometry")
-      (prompt "\nO-BOUND / OBOUND   draw string boundary around selected modules")
-      (prompt "\nO-FILL  / OFILL    flood-fill string boundaries with inverter colors")
-      (prompt "\nO-COUNT / OCOUNT   count modules per string boundary")
-      (prompt "\nO-DC    / ODC      draw DC direction arrows across module rows")
-      (prompt "\nO-TAG   / OTAG     place PV terminal / INV-MPPT-STRING tags from CSV")
-      (prompt "\nO-TABLE / OTABLE   generate stringing schedule table from CSV")
-      (prompt "\nO-HOMERUN / OHOMERUN  draw homerun and conduit lines")
-      (prompt "\nO-JUMP  / OJUMP    draw cable jump path")
-      (prompt "\nO-LABEL / OLABEL   professional deliverable callout labels")
-      (prompt "\nO-XDATA / OXDATA   stamp XDATA to all entities on known layers")
-      (prompt "\nO-XVIEW / OXVIEW   visualize XDATA fields on drawing")
-      (prompt "\nO-GO    / OGO      natural language dispatcher")
-      (prompt "\nO-REF   / OREF     full command + layer reference")
+      (prompt "\n--- O-Suite ---")
+      (prompt "\nO       / OPAL      open the Opal toolbox dialog")
+      (prompt "\nO-LOAD  / OLOAD     reload all tools")
+      (prompt "\nO-SET   / OSET      calibrate module grid geometry")
+      (prompt "\nO-DC    / ODC       draw DC string path between modules")
+      (prompt "\nO-ROWSPACE / OROWSPACE  evenly space selected module rows")
+      (prompt "\nOHELP   / O-HELP    full command list")
       (prompt (strcat "\n" (itoa (length loaded)) " tool(s) loaded."))))
 
   (if skipped
@@ -151,20 +145,16 @@
         (setq _oload-skip-str (strcat _oload-skip-str _oload-s " ")))
       (prompt (strcat "\nSkipped (no .lsp): " _oload-skip-str))))
 
-  ;; Auto-run O-SET if geometry not calibrated
-  (if (not (null (atoms-family 1 (list "C:O-SET"))))
-    (if (and *oset-mod-w* (> *oset-mod-w* 0))
-      (prompt (strcat "\nO-SET already calibrated -- mod-w="
-                      (rtos *oset-mod-w* 2 2)
-                      "  mod-h=" (rtos *oset-mod-h* 2 2)
-                      ". Run O-SET to recalibrate."))
-      (progn
-        (prompt "\nO-SET required: box-select any 2x2+ block of modules to calibrate geometry.")
-        (C:O-SET)))
-    (prompt "\nO-SET not loaded -- run manually to calibrate module geometry."))
+  ;; Auto-run O-SET if geometry not calibrated -- ONLY on a manual (non-quiet)
+  ;; load. On silent startup (bootstrap sets *oload-quiet*) we must never hijack
+  ;; the session with a calibration prompt.
+  (if (not *oload-quiet*)
+    (if (not (null (atoms-family 1 (list "C:O-SET"))))
+      (C:O-SET)
+      (prompt "\nO-SET not loaded -- run manually to calibrate module geometry.")))
   (princ))
 
 (defun C:OLOAD () (C:O-LOAD))
 
-(prompt "\nO-LOAD v1.03 loaded. Type O-LOAD or OLOAD to load all O-Suite tools.")
+(prompt "\nO-LOAD v1.04 loaded. Type O-LOAD or OLOAD to load all O-Suite tools.")
 (princ)

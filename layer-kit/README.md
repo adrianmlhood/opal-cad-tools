@@ -44,7 +44,7 @@ Root: `C:\Users\adria\CAD\Automations\layer-kit\`
 Startup Suite**, or add this line to your single real `acad.lsp` / `acaddoc.lsp`:
 
 ```lisp
-(load "C:\\Users\\adria\\CAD\\Automations\\LayerKit\\layerkit-load.lsp")
+(load "C:\\Users\\adria\\CAD\\Automations\\layer-kit\\layerkit-load.lsp")
 ```
 
 > It is **not** named `acad.lsp` on purpose — AutoCAD auto-loads only the first `acad.lsp` on
