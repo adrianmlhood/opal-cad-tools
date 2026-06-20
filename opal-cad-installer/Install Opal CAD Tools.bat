@@ -9,7 +9,7 @@ if not exist "%SRC%" set "SRC=%~dp0bundle\OpalTools.bundle"
 
 if not exist "%SRC%" (
   echo Could not find OpalTools.bundle next to this script.
-  echo Keep Install.bat in the same folder as the OpalTools.bundle folder.
+  echo Keep this file in the same folder as the OpalTools.bundle folder.
   pause
   exit /b 1
 )
