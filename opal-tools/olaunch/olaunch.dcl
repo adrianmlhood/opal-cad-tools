@@ -3,8 +3,9 @@ opal_launcher : dialog {
   : row {
     : image {
       key = "logo";
-      width = 16;
+      width = 10;
       height = 6;
+      aspect_ratio = 1;
       color = -15;
     }
     : column {

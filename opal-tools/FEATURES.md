@@ -776,12 +776,16 @@ Latest confirmed: stub only
 
 ## O-LAUNCH
 Commands: O, OPAL, O-MENU
-File: olaunch/olaunch-1.0.lsp  (+ olaunch.dcl)
-Latest confirmed: 1.0 untested
+File: olaunch/olaunch-1.01.lsp  (+ olaunch.dcl)
+Latest confirmed: 1.0 works (dialog opens live; logo rendered wrong)
 
 ### Current Features
-- [1.0 untested] DCL "toolbox" dialog: Opal mark (gold diamond + split disc on charcoal,
-  drawn with vector_image/fill_image) + version, with grouped buttons (Draw / Layers / Setup).
+- [1.01 untested] Logo polish: symmetric gold diamond + real cream disc (filled circle drawn
+  row-by-row) split into thirds by two charcoal bars; cream uses ACI 255 so it renders on the
+  dark badge (1.0 used ACI 7 which drew black/invisible). Logo tile narrowed (dcl width 16->10).
+- [1.0 untested] DCL "toolbox" dialog: Opal mark + version, with grouped buttons (Draw / Layers / Setup).
+- NOTE: DCL has a hard visual ceiling (flat gray AutoCAD dialog). Planned: replace with a
+  modern dockable .NET palette (see task / project notes); keep tool logic in LISP.
 - [1.0 untested] Buttons map to commands via *olaunch-map*; a button whose command is not
   loaded is shown disabled (mode_tile 1), so the toolbox never offers a missing tool.
 - [1.0 untested] Selecting a button sets *olaunch-cmd*, closes the dialog (done_dialog 1),
