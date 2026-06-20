@@ -13,20 +13,21 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path   # opal-cad-installer
 $auto = Split-Path -Parent $here                          # Automations
 $dest = "$env:APPDATA\Autodesk\ApplicationPlugins\OpalTools.bundle"
 $enc  = New-Object System.Text.UTF8Encoding($false)
+$ver  = (Get-Content (Join-Path $here "VERSION") -Raw).Trim()   # single source of the version string
 
 if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
 New-Item -ItemType Directory "$dest\Contents" -Force | Out-Null
 
-$xml = @'
+$xml = @"
 <?xml version="1.0" encoding="utf-8"?>
-<ApplicationPackage SchemaVersion="1.0" ProductCode="{7E9C1A40-2B6F-4D8E-9A11-0C0FA1000001}" Name="Opal CAD Tools (DEV)" Description="Opal CAD Tools - dev mode (loads from source)" AppVersion="1.0.0" Author="Adrian Hood">
+<ApplicationPackage SchemaVersion="1.0" ProductCode="{7E9C1A40-2B6F-4D8E-9A11-0C0FA1000001}" Name="Opal CAD Tools (DEV)" Description="Opal CAD Tools - dev mode (loads from source)" AppVersion="$ver" Author="Adrian Hood">
   <CompanyDetails Name="Opal Energy" />
   <Components>
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" />
-    <ComponentEntry AppName="OpalCADTools" ModuleName="./Contents/bootstrap.lsp" AppType="LISP" LoadOnAutoCADStartup="True" />
+    <ComponentEntry AppName="OpalCADTools" Version="$ver" ModuleName="./Contents/bootstrap.lsp" AppType="LISP" LoadOnAutoCADStartup="True" />
   </Components>
 </ApplicationPackage>
-'@
+"@
 [System.IO.File]::WriteAllText("$dest\PackageContents.xml", $xml, $enc)
 
 $o = ($auto + "\opal-tools\").Replace('\','\\')

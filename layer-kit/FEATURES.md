@@ -51,7 +51,18 @@ Latest confirmed: 1.1 works (1.0 as PV-LOAD)
 
 ## LK-CLEANUP
 Commands: LK-CLEANUP, LK-APPLY
-File: lkcleanup/lkcleanup-1.45.lsp
+File: lkcleanup/lkcleanup-1.46.lsp
+- [1.46 works (headless)] Config dir now DEFAULTS to the suite's own config folder, not the drawing
+  folder. lk:suite-root (mirrors _lkload-root: *lk-suite-root* when bound, else the dev path) +
+  lk:suite-config-dir give <suite-root>config\; lk:get-config-dir priority is now
+  *lk-config-dir* -> <suite-root>config\ -> DWGPREFIX. This points Save/Set at the git-tracked
+  layer-kit\config\ (in DEV) or the bundle's config\ (in an install) instead of DWGPREFIX, which
+  is what the 1.45 stale-path fallback was wrongly hitting. On load, a remembered dir that no
+  longer exists is dropped (clears a stale session value too), so the renamed LayerKit\config\
+  can't override the default.
+- [1.46 works (headless)] lk:backup-csv: shared helper that copies a master CSV to
+  <dir>\backups\<name>-YYYYMMDD-HHMMSS.csv before it is overwritten. Used by LK-STD Save and
+  LK-FILTER Save (1.23+) so a mistaken Save is one-step recoverable, independent of git.
 - [1.45 untested-live] lk:get-saved-dir now VALIDATES the remembered ConfigDir exists
   (vl-file-directory-p, trailing separator stripped) before trusting it. A stale path -- e.g.
   the suite folder renamed LayerKit -> layer-kit -- now returns nil so lk:get-config-dir falls
@@ -262,7 +273,10 @@ Latest confirmed: 1.36 auto force-del + 1.34 std-protect/A-WALL->S-SITE confirme
 
 ## LK-STD (layer standards)
 Commands: LK-STD  [Save/Set/Config/Rejects]   (1.2: was LK-STDSAVE/LK-STDSET; Config folds in old LK-CONFIG)
-File: lkstd/lkstd-1.22.lsp
+File: lkstd/lkstd-1.23.lsp
+- [1.23 works (headless)] Save now backs up the previous PV_layer_standards.csv to config\backups\
+  (lk:backup-csv) before overwriting, so a mistaken Save is one-step recoverable. (Headless: file
+  loads clean + lk:backup-csv verified copying to config\backups\; end-to-end Save flow GUI-pending.)
 - [1.22 untested-live] LK-STD > Save now CONFIRMS new layers before they enter the standards
   list. Save reads the existing CSV first; layers already listed (and "0") are written as-is, a
   layer NOT yet listed is gated by lk:confirm-new-layer [Yes/No/Reject], and a permanently-
@@ -382,7 +396,9 @@ persistence verified headless). Prior 1.2 no-seed/pick-at-init; 1.1 block/elemen
 
 ## LK-FILTER (layer group filters)
 Commands: LK-FILTER  [Set/Save]   (1.2: was LK-FILTERSET/LK-FILTERSAVE -> one LK-FILTER)
-File: lkfilter/lkfilter-1.22.lsp
+File: lkfilter/lkfilter-1.23.lsp
+- [1.23 works (headless)] Save now backs up the previous PV_layer_filters.csv to config\backups\
+  (lk:backup-csv, shared with LK-STD) before overwriting, so a mistaken Save is one-step recoverable.
 - [1.22 untested-live] lk:filt-ensure-layer creates curated CSV members WITHOUT prompting, but
   skips a permanently-rejected name via lk:rejected-p (returns nil -> that layer is left out of
   the filter, no member added). Matches the 1.43 direction fix: no prompts on the create side;

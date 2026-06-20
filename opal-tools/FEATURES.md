@@ -107,11 +107,19 @@ Latest confirmed: 1.0 works (live DEV->BUNDLE->DEV verified, git summary shown, 
 
 ## O-SET
 Commands: O-SET, OSET
-File: oset/oset-1.11.lsp
-Latest confirmed: 1.11 works (live on an Opal drawing: 287 polylines -> 254 4-corner -> 223 modules;
-module 44.41 x 89.69; Gap X 14.5 + 13.5 (two spacings), Gap Y 0.26)
+File: oset/oset-1.12.lsp
+Latest confirmed: 1.12 works (live on TSC11590: 287 polylines -> 254 4-corner -> 227 modules,
+ignored 27; module 44.41 x 89.69; Gap X 14.58 + 13.60 (two spacings), Gap Y 0.25)
 
 ### Current Features
+- [1.12 works] Module match is ORIENTATION-AGNOSTIC and gates on the LONG side. Each polyline's
+  (short,long) edge pair is compared to the module's (short,long): LONG side matched tightly
+  (tol = max(2.0, 2% of long)) because panel length is the stable signal separating modules from
+  shorter clutter (87x41 frames, half panels); SHORT side gets slack (tol = max(4.0, 10% of short))
+  so slightly-narrower edge modules (41x90 beside the dominant 44x90) are no longer dropped, and a
+  module wound from a different start corner still matches. Fixes under-count on TSC11590
+  (223 -> 227: kept 44x90 x221 + 43x90 x2 + 41x90 x4, excluded all 82-87 long clutter). SUPERSEDES
+  the [1.08] orientation-sensitive 5% footprint match below.
 - [1.11 works] FULLY AUTOMATIC -- no click. ssget "X" (0 . "*POLYLINE") on *ocfg-layer-modules*
   ("PV-MODS"); corners via _oset-poly-pts (LWPOLYLINE group-10 + heavyweight-POLYLINE VERTEX walk,
   OCS->WCS (trans pt ent 0)). Fixes the 1.0 LWPOLYLINE-only bug -- works on Opal POLYLINE modules.
@@ -120,9 +128,9 @@ module 44.41 x 89.69; Gap X 14.5 + 13.5 (two spacings), Gap Y 0.26)
   fatal (was the "numberp: nil" crash). If nothing is usable it prints the first entity's type +
   corner count to diagnose unexpected geometry.
 - [1.08 works] Module footprint = the MODE of W x H over all 4-corner polylines (robust to a few
-  odd sizes). Then keeps ONLY polylines within 5% of that footprint and ignores the rest -- this
-  handles non-module clutter on PV-MODS (the live drawing carries ~31 non-module objects).
-  Reports "Matching module footprint (w x h): N (ignored M non-module object(s))".
+  odd sizes). (The match TOLERANCE that follows was the orientation-sensitive 5% test; replaced by
+  the orientation-agnostic long-tight/short-loose match in [1.12] above.) This handles non-module
+  clutter on PV-MODS (the live drawing carries ~31 non-module objects).
 - [1.05 works] Spacing is sampled from EVERY matched module (nearest in-band neighbour along each
   module axis), not one reference module -- so an edge/row-end module can't yield a 2-pitch gap.
 - [1.09 works] Spacing = the MOST COMMON pitch (mode cluster), not the smallest. Gap = pitch - size.
@@ -833,12 +841,54 @@ Latest confirmed: stub only
 
 ---
 
+## OADMIN
+Commands: OADMIN, O-ADMIN
+File: oadmin/oadmin-1.0.lsp
+Latest confirmed: 1.0 untested
+STATUS: VESTIGIAL. As of O-LAUNCH 1.13 the master-rewrite gate is DEV-vs-BUNDLE (the dialog
+variant) + the dev-only Advanced submenu, NOT this flag. OADMIN still toggles the registry value
+but nothing reads it anymore. Keep for now in case a grantable non-dev unlock is wanted later;
+otherwise it can be retired.
+
+### Current Features (historical -- no longer wired to the menu)
+- [1.0 untested] Toggles the per-machine admin unlock that WAS read by olaunch 1.12's
+  _olaunch-admin-p to reveal the master-rewrite actions. 1.13+ ignores it.
+- [1.0 untested] Persisted in HKCU\Software\Ocotillo\OpalTools  Admin = "1"/"0" (the hive omode
+  uses). A DEV machine is always admin regardless of the flag (_olaunch-admin-p). To grant a
+  teammate, have them run OADMIN On once on their machine. OADMIN ships in the release (so the
+  capability can be granted), unlike omode which is dev-only.
+- [1.0 untested] OADMIN [On/Off] <toggle>; Enter flips the current state. Prints the new state and
+  reminds the user to re-open the toolbox.
+
+### Globals / state
+- Registry HKCU\Software\Ocotillo\OpalTools  Admin  ("1" = unlocked)
+
+### Notes
+- This is an accident/role guard, not security: any user can opt in. Combined with the LK-STD/
+  LK-FILTER verify + ban-list, the pre-write backup (config\backups\, lkstd/lkfilter 1.23+), and
+  git on the source machine, a mistaken master rewrite is recoverable.
+
+---
+
 ## O-LAUNCH
 Commands: O, OPAL, O-MENU
-File: olaunch/olaunch-1.11.lsp  (+ olaunch.dcl, two main variants: opal_launcher / opal_launcher_dev)
-Latest confirmed: 1.08 works (dialog opens live, DEV/BUNDLE switch verified); 1.09-1.11 untested-live
+File: olaunch/olaunch-1.14.lsp  (+ olaunch.dcl: 3 main variants opal_launcher / opal_launcher_dev /
+      opal_launcher_prodtest, plus the opal_advanced submenu)
+Latest confirmed: 1.08 works (dialog opens live, DEV/BUNDLE switch verified); 1.09-1.14 untested-live
 
 ### Current Features
+- [1.14 untested] "Save Layers/Filters" moved out of the main DEV toolbox into a DEV-only
+  "Advanced >" submenu (opal_advanced, key ADV -> done_dialog 40). Its "< Back" returns to the main
+  toolbox (done_dialog 2 -> reopen), same as the old Layer Tools back. The submenu's one button
+  "Save Layers/Filters -> master" runs olaunch:save-master (lk:std-save then lk:filter-save).
+- [1.14 untested] "Back to DEV" button (key MODEDEV -> omode:to-dev) shown ONLY in BUNDLE
+  (prod-test), via a third main variant opal_launcher_prodtest -- never in a real teammate BUNDLE
+  install (they can't reach DEV). Main variant is now a 3-way pick: dev / prodtest / bundle.
+- [1.13 untested] Gate is DEV vs BUNDLE (the dialog variant), NOT the OADMIN flag. Bundle/teammate
+  toolboxes show "Standardize" (LK-APPLY) only. The 1.12 admin-unlock model (opal_layers_admin /
+  _olaunch-admin-p) was dropped; OADMIN still exists as a command but no longer drives the menu.
+  LK-APPLY already does cleanup + apply-standard + build-filters, so STDSET/FILBUILD are not in the
+  menu (still typable via LK-STD / LK-FILTER).
 - [1.11 untested] "Switch to Bundle" button in the DEV toolbox Setup group (key MODESW, dev variant
   only) flips to a prod-test via omode:to-bundle, then reopens the toolbox -- now the teammate
   variant showing "BUNDLE (prod-test)". Variant + mode are recomputed each loop pass so the reopen

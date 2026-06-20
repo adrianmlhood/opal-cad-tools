@@ -1,7 +1,9 @@
-// Opal CAD Tools launcher -- two main-toolbox variants:
-//   opal_launcher      teammate / bundle build (no Reload Tools)
-//   opal_launcher_dev  dev build (adds Reload Tools)
-// The launcher LISP picks one by mode (DEV when loading from the source tree).
+// Opal CAD Tools launcher -- main-toolbox variants picked by mode:
+//   opal_launcher           teammate / bundle build (Standardize only; no dev actions)
+//   opal_launcher_dev       dev build (adds Advanced >, Reload, Switch to Bundle)
+//   opal_launcher_prodtest  prod-test preview (adds Back to DEV; NOT shipped to real users)
+//   opal_advanced           dev-only submenu off the toolbox: Save Layers/Filters (drawing -> master)
+// The launcher LISP picks the main variant from _olaunch-mode (DEV when loading from source).
 
 opal_launcher : dialog {
   label = "Opal CAD Tools";
@@ -27,7 +29,7 @@ opal_launcher : dialog {
     }
     : boxed_column {
       label = "Layers";
-      : button { key = "LAYERS"; label = "Layer Tools >"; }
+      : button { key = "LKAPPLY"; label = "Standardize"; }
     }
     : boxed_column {
       label = "Setup";
@@ -62,7 +64,8 @@ opal_launcher_dev : dialog {
     }
     : boxed_column {
       label = "Layers";
-      : button { key = "LAYERS"; label = "Layer Tools >"; }
+      : button { key = "LKAPPLY"; label = "Standardize"; }
+      : button { key = "ADV";     label = "Advanced >"; }
     }
     : boxed_column {
       label = "Setup";
@@ -75,15 +78,48 @@ opal_launcher_dev : dialog {
   : button { key = "cancel"; label = "Close"; is_cancel = true; is_default = true; }
 }
 
-opal_layers : dialog {
-  label = "Layer Tools";
-  : text { label = "Choose an action:"; }
+opal_launcher_prodtest : dialog {
+  label = "Opal CAD Tools";
+  : row {
+    : image {
+      key = "logo";
+      width = 10;
+      height = 6;
+      aspect_ratio = 1;
+      color = -15;
+    }
+    : column {
+      : text { label = "OPAL CAD TOOLS"; }
+      : text { key = "ver"; label = "v1.0"; }
+      : text { label = "AutoCAD design tools"; }
+    }
+  }
   spacer;
-  : button { key = "LKAPPLY";  label = "Clean up + standardize (all)"; }
-  : button { key = "STDSAVE";  label = "Save current layers as the standard"; }
-  : button { key = "STDSET";   label = "Apply the standard to this drawing"; }
-  : button { key = "FILBUILD"; label = "Build filter groups from the standard"; }
-  : button { key = "FILSAVE";  label = "Save the current filter groups"; }
+  : row {
+    : boxed_column {
+      label = "Draw";
+      : button { key = "ORESPACE"; label = "Respace Rows"; }
+    }
+    : boxed_column {
+      label = "Layers";
+      : button { key = "LKAPPLY"; label = "Standardize"; }
+    }
+    : boxed_column {
+      label = "Setup";
+      : button { key = "MODEDEV"; label = "Back to DEV"; }
+      : button { key = "OHELP";   label = "Help"; }
+    }
+  }
+  spacer;
+  : button { key = "cancel"; label = "Close"; is_cancel = true; is_default = true; }
+}
+
+// Dev-only submenu off the toolbox. < Back returns to the main toolbox.
+opal_advanced : dialog {
+  label = "Advanced";
+  : text { label = "Push THIS drawing up to the shared master (careful):"; }
+  spacer;
+  : button { key = "LKSAVE"; label = "Save Layers/Filters -> master"; }
   spacer;
   : button { key = "back"; label = "< Back"; is_cancel = true; }
 }
