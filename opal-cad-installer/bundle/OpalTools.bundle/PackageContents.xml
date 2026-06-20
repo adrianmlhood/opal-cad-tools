@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage
+    SchemaVersion="1.0"
+    ProductCode="{7E9C1A40-2B6F-4D8E-9A11-0C0FA1000001}"
+    Name="Opal CAD Tools"
+    Description="Opal CAD Tools - O-Suite and LayerKit for AutoCAD"
+    AppVersion="1.0.0"
+    Author="Adrian Hood">
+  <CompanyDetails Name="Opal Energy" />
+  <Components Description="Opal CAD Tools">
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD*" />
+    <ComponentEntry
+        AppName="OpalCADTools"
+        Version="1.0.0"
+        ModuleName="./Contents/bootstrap.lsp"
+        AppType="LISP"
+        LoadOnAutoCADStartup="True" />
+  </Components>
+</ApplicationPackage>

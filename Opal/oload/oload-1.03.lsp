@@ -1,0 +1,170 @@
+;; oload-1.03.lsp -- O-Suite Master Loader
+;; Commands: O-LOAD (alias: OLOAD)
+;; Loads oconfig first, then all tool subfolders in the suite root.
+;; Set *oload-quiet* T before loading to suppress per-tool [OK] lines.
+;; Tools in dormant/ are excluded from scan. Move to root to activate.
+;; v1.03
+;; ============================================================
+
+(defun _oload-root ()
+  "C:\\Users\\adria\\CAD\\Automations\\Opal\\")
+
+;; Folders excluded from tool scan (loaded separately, not tools, or OS entries)
+(defun _oload-skip-p (d / u)
+  (setq u (strcase d))
+  (or (= d ".")
+      (= d "..")
+      (= u "OLOAD")
+      (= u "OCONFIG")
+      (= u "DORMANT")
+      (= u "TEST")
+      (= u "TOOLS")))
+
+;; Collect all tool subfolders in root except skipped ones
+(defun _oload-tools (root / dirs tools d)
+  (setq dirs (vl-directory-files root nil -1))
+  (setq tools (quote ()))
+  (foreach d dirs
+    (if (and (not (_oload-skip-p d))
+             (vl-file-directory-p (strcat root d "\\")))
+      (setq tools (append tools (list d)))))
+  tools)
+
+;; Char-by-char ASCII string comparison (a < b)
+(defun _oload-str< (a b / i ca cb)
+  (setq i 1)
+  (while (and (<= i (strlen a)) (<= i (strlen b))
+              (= (setq ca (ascii (substr a i 1)))
+                 (setq cb (ascii (substr b i 1)))))
+    (setq i (1+ i)))
+  (cond
+    ((> i (strlen a)) (< (strlen a) (strlen b)))
+    ((> i (strlen b)) nil)
+    (T (< ca cb))))
+
+;; Insertion sort ascending
+(defun _oload-sort-str (lst / sorted x inserted result r)
+  (setq sorted (quote ()))
+  (foreach x lst
+    (setq inserted nil  result (quote ()))
+    (foreach r sorted
+      (if (and (not inserted) (_oload-str< x r))
+        (progn (setq result (append result (list x r))  inserted T))
+        (setq result (append result (list r)))))
+    (setq sorted (if inserted result (append result (list x)))))
+  sorted)
+
+;; Find highest-versioned .lsp in a folder
+(defun _oload-best-lsp (folder / files)
+  (setq files (vl-directory-files folder "*.lsp" 1))
+  (if files (car (reverse (_oload-sort-str files))) nil))
+
+;; Extract major.minor from filename e.g. "obound-1.2.3.lsp" -> "1.2"
+(defun _oload-major-minor (fname / base i c tok segs in-ver)
+  (setq base (vl-filename-base fname))
+  (setq i 1  tok ""  segs (quote ())  in-ver nil)
+  (while (<= i (strlen base))
+    (setq c (substr base i 1))
+    (cond
+      ((and (not in-ver) (= c "-"))
+       (setq in-ver T))
+      ((and in-ver (= c "."))
+       (setq segs (append segs (list tok))  tok ""))
+      (in-ver
+       (setq tok (strcat tok c))))
+    (setq i (1+ i)))
+  (if (/= tok "") (setq segs (append segs (list tok))))
+  (if (>= (length segs) 2)
+    (strcat (nth 0 segs) "." (nth 1 segs))
+    (if (= (length segs) 1) (nth 0 segs) "0.0")))
+
+(if (not *oload-versions*) (setq *oload-versions* nil))
+(if (not (boundp (quote *oload-quiet*))) (setq *oload-quiet* nil))
+
+
+(defun C:O-LOAD ( / root cfg-lsp tools folder lspfile path
+                    loaded skipped new-ver prev-ver is-update)
+  (vl-load-com)
+  (setq root (_oload-root))
+
+  ;; Load oconfig first -- sets all *ocfg-layer-* globals
+  (setq cfg-lsp (_oload-best-lsp (strcat root "oconfig\\")))
+  (if cfg-lsp
+    (progn
+      (load (strcat root "oconfig\\" cfg-lsp))
+      (if (not *oload-quiet*) (prompt (strcat "\n[cfg]  " cfg-lsp))))
+    (prompt "\nO-LOAD: WARNING -- oconfig not found. Layer names may be undefined."))
+
+  ;; Load all tool folders
+  (setq tools (_oload-tools root))
+  (setq loaded (quote ())  skipped (quote ()))
+  (if (not *oload-quiet*) (prompt "\nLoading O-Suite tools..."))
+
+  (foreach tool tools
+    (setq lspfile (_oload-best-lsp (strcat root tool "\\")))
+    (if (not lspfile)
+      (progn
+        (if (not *oload-quiet*)
+          (prompt (strcat "\n  [skip] No .lsp: " tool)))
+        (setq skipped (append skipped (list tool))))
+      (progn
+        (setq path (strcat root tool "\\" lspfile))
+        (load path)
+        (setq new-ver  (_oload-major-minor lspfile))
+        (setq prev-ver (cdr (assoc tool *oload-versions*)))
+        (setq is-update (and prev-ver (/= prev-ver new-ver)))
+        (if (assoc tool *oload-versions*)
+          (setq *oload-versions*
+            (subst (cons tool new-ver) (assoc tool *oload-versions*) *oload-versions*))
+          (setq *oload-versions* (cons (cons tool new-ver) *oload-versions*)))
+        (if (not *oload-quiet*)
+          (prompt (strcat "\n  [OK]   " lspfile
+                          (if is-update "  ** UPDATE **" ""))))
+        (setq loaded (append loaded (list lspfile))))))
+
+  (if *oload-quiet*
+    (prompt (strcat "\nO-Suite loaded -- " (itoa (length loaded)) " tools. O-REF for help."))
+    (progn
+      (prompt "\n")
+      (prompt "\n--- O-Suite v1.0 ---")
+      (prompt "\nO-LOAD / OLOAD     reload all tools")
+      (prompt "\nO-SET  / OSET      calibrate module grid geometry")
+      (prompt "\nO-BOUND / OBOUND   draw string boundary around selected modules")
+      (prompt "\nO-FILL  / OFILL    flood-fill string boundaries with inverter colors")
+      (prompt "\nO-COUNT / OCOUNT   count modules per string boundary")
+      (prompt "\nO-DC    / ODC      draw DC direction arrows across module rows")
+      (prompt "\nO-TAG   / OTAG     place PV terminal / INV-MPPT-STRING tags from CSV")
+      (prompt "\nO-TABLE / OTABLE   generate stringing schedule table from CSV")
+      (prompt "\nO-HOMERUN / OHOMERUN  draw homerun and conduit lines")
+      (prompt "\nO-JUMP  / OJUMP    draw cable jump path")
+      (prompt "\nO-LABEL / OLABEL   professional deliverable callout labels")
+      (prompt "\nO-XDATA / OXDATA   stamp XDATA to all entities on known layers")
+      (prompt "\nO-XVIEW / OXVIEW   visualize XDATA fields on drawing")
+      (prompt "\nO-GO    / OGO      natural language dispatcher")
+      (prompt "\nO-REF   / OREF     full command + layer reference")
+      (prompt (strcat "\n" (itoa (length loaded)) " tool(s) loaded."))))
+
+  (if skipped
+    (progn
+      (setq _oload-skip-str "")
+      (foreach _oload-s skipped
+        (setq _oload-skip-str (strcat _oload-skip-str _oload-s " ")))
+      (prompt (strcat "\nSkipped (no .lsp): " _oload-skip-str))))
+
+  ;; Auto-run O-SET if geometry not calibrated
+  (if (not (null (atoms-family 1 (list "C:O-SET"))))
+    (if (and *oset-mod-w* (> *oset-mod-w* 0))
+      (prompt (strcat "\nO-SET already calibrated -- mod-w="
+                      (rtos *oset-mod-w* 2 2)
+                      "  mod-h=" (rtos *oset-mod-h* 2 2)
+                      ". Run O-SET to recalibrate."))
+      (progn
+        (prompt "\nO-SET required: box-select any 2x2+ block of modules to calibrate geometry.")
+        (C:O-SET)))
+    (prompt "\nO-SET not loaded -- run manually to calibrate module geometry."))
+  (princ))
+
+(defun C:OLOAD () (C:O-LOAD))
+
+(prompt "\nO-LOAD v1.03 loaded. Type O-LOAD or OLOAD to load all O-Suite tools.")
+(princ)
