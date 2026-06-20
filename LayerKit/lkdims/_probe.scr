@@ -1,4 +1,0 @@
-(setvar "SECURELOAD" 0)
-(setq fp (open "C:/Users/adria/CAD/Automations/LayerKit/lkdims/_probe.txt" "w"))(write-line "inline-lisp-ran" fp)(close fp)
-QUIT
-N

@@ -19,7 +19,7 @@
       (strcat (vl-filename-directory (findfile "bootstrap.lsp")) "\\"))))
 
 (setq *o-suite-root*  (strcat *opal-bundle* "opal-tools\\"))
-(setq *lk-suite-root* (strcat *opal-bundle* "LayerKit\\"))
+(setq *lk-suite-root* (strcat *opal-bundle* "layer-kit\\"))
 
 ;; --- helper: ASCII string compare (a < b) ---
 (defun _opal-str< (a b / i ca cb)

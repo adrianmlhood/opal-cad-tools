@@ -3,7 +3,7 @@
 AutoCAD AutoLISP utility suite (Ocotillo Labs). A home for `LK-`-prefixed layer/utility
 tools, run through one master loader. Sibling project to Stringtag and Opal.
 
-Root: `C:\Users\adria\CAD\Automations\LayerKit\`
+Root: `C:\Users\adria\CAD\Automations\layer-kit\`
 
 ## Commands
 

@@ -1,4 +1,4 @@
 build/
 *.zip
 bundle/OpalTools.bundle/Contents/opal-tools/
-bundle/OpalTools.bundle/Contents/LayerKit/
+bundle/OpalTools.bundle/Contents/layer-kit/

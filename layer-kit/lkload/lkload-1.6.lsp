@@ -12,7 +12,7 @@
 (defun _lkload-root ()
   (if (and (boundp (quote *lk-suite-root*)) *lk-suite-root*)
     *lk-suite-root*
-    "C:\\Users\\adria\\CAD\\Automations\\LayerKit\\"))
+    "C:\\Users\\adria\\CAD\\Automations\\layer-kit\\"))
 
 ;; Folders excluded from the tool scan (loader, data, or non-tool dirs)
 (defun _lkload-skip-p (d / u)

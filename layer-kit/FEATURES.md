@@ -43,7 +43,7 @@ Latest confirmed: 1.1 works (1.0 as PV-LOAD)
 - *lkload-quiet*    -- suppress per-tool output when T (set before loading)
 
 ### Assumptions / constraints
-- Root path: *lk-suite-root* if bound (deploy bundle), else hardcoded C:\Users\adria\CAD\Automations\LayerKit\
+- Root path: *lk-suite-root* if bound (deploy bundle), else hardcoded C:\Users\adria\CAD\Automations\layer-kit\
 - Folder skip list (case-insensitive): lkload, config, archive, test, tools
 - Version sort is ASCII; use "1.09"/"1.10", never "1.9"/"1.10"
 

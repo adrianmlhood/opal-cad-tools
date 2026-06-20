@@ -1,5 +1,0 @@
-(setvar "SECURELOAD" 0)
-(load "C:/Users/adria/CAD/Automations/LayerKit/lkdims/_test.lsp")
-RUNTEST
-QUIT
-N
