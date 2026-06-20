@@ -31,7 +31,7 @@
 (defun _olaunch-dcl-path ( / root p)
   (setq root (if (and (boundp (quote *o-suite-root*)) *o-suite-root*)
                *o-suite-root*
-               "C:\\Users\\adria\\CAD\\Automations\\Opal\\"))
+               "C:\\Users\\adria\\CAD\\Automations\\opal-tools\\"))
   (setq p (strcat root "olaunch\\olaunch.dcl"))
   (if (findfile p) p (findfile "olaunch.dcl")))
 

@@ -54,7 +54,7 @@ Latest confirmed: 1.03 works
 - *oload-quiet*    -- suppress per-tool output when T (set before loading)
 
 ### Assumptions / constraints
-- Root path hardcoded: C:\Users\adria\CAD\Automations\Opal\
+- Root path: *o-suite-root* if bound (deploy bundle), else C:\Users\adria\CAD\Automations\opal-tools\
 - Version sort is ASCII; avoid version numbers where ASCII order ≠ numeric order
   (e.g., "1.9" sorts after "1.10" → use "1.09", "1.10", not "1.9", "1.10")
 - Folder skip list: dormant, oload, oconfig, test, tools (case-insensitive match)

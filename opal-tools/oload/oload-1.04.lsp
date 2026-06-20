@@ -10,7 +10,7 @@
 (defun _oload-root ()
   (if (and (boundp (quote *o-suite-root*)) *o-suite-root*)
     *o-suite-root*
-    "C:\\Users\\adria\\CAD\\Automations\\Opal\\"))
+    "C:\\Users\\adria\\CAD\\Automations\\opal-tools\\"))
 
 ;; Folders excluded from tool scan (loaded separately, not tools, or OS entries)
 (defun _oload-skip-p (d / u)

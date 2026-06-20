@@ -10,7 +10,7 @@ AutoCAD design tools for the Opal team (O-Suite + LayerKit).
 Full guide: open `Read Me First.html` (also in `opal-cad-installer/`).
 
 ## What's here
-- `Opal/` - O-Suite source (`O-*` commands).
+- `opal-tools/` - O-Suite source (`O-*` commands).
 - `LayerKit/` - LayerKit source (`LK-*` commands).
 - `opal-cad-installer/` - installer scripts, the guide, and the plugin bundle.
 - `OpalTools-1.0.0.zip` - the ready-to-run installer.
