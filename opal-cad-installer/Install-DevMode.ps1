@@ -51,8 +51,9 @@ $boot = @"
   (if best (load (strcat folder best)) nil))
 (_opal-latest (strcat *o-suite-root* "oload\\"))
 (_opal-latest (strcat *lk-suite-root* "lkload\\"))
+;; O-LOAD (v1.10+) loads the O-Suite AND then LayerKit, so one C:O-LOAD does both.
+;; lkload is loaded above so LK-LOAD exists for manual use; O-LOAD owns the call.
 (if (member "C:O-LOAD" (atoms-family 1 (list "C:O-LOAD")))  (C:O-LOAD))
-(if (member "C:LK-LOAD" (atoms-family 1 (list "C:LK-LOAD"))) (C:LK-LOAD))
 (setq *oload-quiet* nil *lkload-quiet* nil)
 (princ "\nOpal CAD Tools loaded in DEV mode (from source). Type O or OHELP.")
 (princ)

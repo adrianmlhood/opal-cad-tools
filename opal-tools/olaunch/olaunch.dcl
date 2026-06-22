@@ -25,7 +25,8 @@ opal_launcher : dialog {
   : row {
     : boxed_column {
       label = "Draw";
-      : button { key = "ORESPACE"; label = "Respace Rows"; }
+      : button { key = "OMODSPACE"; label = "Module Spacing"; }
+      : button { key = "OPVSPACE"; label = "PV Spacing"; }
     }
     : boxed_column {
       label = "Layers";
@@ -60,7 +61,8 @@ opal_launcher_dev : dialog {
   : row {
     : boxed_column {
       label = "Draw";
-      : button { key = "ORESPACE"; label = "Respace Rows"; }
+      : button { key = "OMODSPACE"; label = "Module Spacing"; }
+      : button { key = "OPVSPACE"; label = "PV Spacing"; }
     }
     : boxed_column {
       label = "Layers";
@@ -98,7 +100,8 @@ opal_launcher_prodtest : dialog {
   : row {
     : boxed_column {
       label = "Draw";
-      : button { key = "ORESPACE"; label = "Respace Rows"; }
+      : button { key = "OMODSPACE"; label = "Module Spacing"; }
+      : button { key = "OPVSPACE"; label = "PV Spacing"; }
     }
     : boxed_column {
       label = "Layers";

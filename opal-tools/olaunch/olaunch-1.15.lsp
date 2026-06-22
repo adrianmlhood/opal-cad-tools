@@ -1,6 +1,9 @@
-;; olaunch-1.14.lsp -- Opal CAD Tools launcher dialog (the "toolbox")
+;; olaunch-1.15.lsp -- Opal CAD Tools launcher dialog (the "toolbox")
 ;; Commands: O (aliases: OPAL, O-MENU)
 ;; Opal mark + grouped buttons.
+;; v1.15 -- toolbox "Draw" button points at O-MODSPACE (was O-ROWSPACE); DCL button
+;;          key OMODSPACE / label "Module Spacing". Part of the O-ROWSPACE -> O-MODSPACE
+;;          rename (rows + columns).
 ;; v1.14 -- "Save Layers/Filters" moved out of the main DEV toolbox into a dev-only
 ;;          "Advanced >" submenu (opal_advanced) whose "< Back" returns to the main
 ;;          toolbox (done_dialog 2 -> reopen), same as the old Layer Tools back.
@@ -21,8 +24,8 @@
 ;; generic buttons: pick the command, close the toolbox, run it
 (setq *olaunch-main*
   (list
-    (cons "ORESPACE" "C:O-ROWSPACE")
-    (cons "OHELP"    "C:OHELP")))
+    (cons "OMODSPACE" "C:O-MODSPACE")
+    (cons "OHELP"     "C:OHELP")))
 
 ;; DEV-only "Save Layers/Filters": push this drawing's layer standard AND filters
 ;; up to the master CSVs (drawing -> master). Runs both saves in sequence.
@@ -163,5 +166,5 @@
 (defun C:OPAL   () (C:O))
 (defun C:O-MENU () (C:O))
 
-(prompt "\nO-LAUNCH v1.14 loaded. Type O to open the Opal toolbox.")
+(prompt "\nO-LAUNCH v1.15 loaded. Type O to open the Opal toolbox.")
 (princ)

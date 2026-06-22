@@ -51,7 +51,16 @@ Latest confirmed: 1.1 works (1.0 as PV-LOAD)
 
 ## LK-CLEANUP
 Commands: LK-CLEANUP, LK-APPLY
-File: lkcleanup/lkcleanup-1.46.lsp
+File: lkcleanup/lkcleanup-1.47.lsp
+- [1.47 works (headless)] An UNMATCHED layer with 0 entities is no longer prompted to merge into a
+  standard -- it's classified [EMPTY] and queued for auto-purge (new cond branch in classify Level 4:
+  (= 0 (lk:count-on-layer layer-name)) -> "[EMPTY] name (0 entities) -> purge", no prompt, no zoom).
+  lk:purge-empty-layers (the existing global -PURGE in the execute block) removes them; the execute
+  step now also fires when empties are the ONLY actionable items (gate is (or (> total-assigns 0)
+  empty-purge)), so an empties-only drawing still gets cleaned. Summary gained an "Empty -> purge: N"
+  line. Verified headless: a lone empty LAYER13 was classified [EMPTY], not prompted, and purged
+  (GONE after execute). Scope: only UNMATCHED empties; an empty layer that matches a keyword/static
+  mapping still follows its normal rename path.
 - [1.46 works (headless)] Config dir now DEFAULTS to the suite's own config folder, not the drawing
   folder. lk:suite-root (mirrors _lkload-root: *lk-suite-root* when bound, else the dev path) +
   lk:suite-config-dir give <suite-root>config\; lk:get-config-dir priority is now
@@ -273,7 +282,18 @@ Latest confirmed: 1.36 auto force-del + 1.34 std-protect/A-WALL->S-SITE confirme
 
 ## LK-STD (layer standards)
 Commands: LK-STD  [Save/Set/Config/Rejects]   (1.2: was LK-STDSAVE/LK-STDSET; Config folds in old LK-CONFIG)
-File: lkstd/lkstd-1.23.lsp
+File: lkstd/lkstd-1.24.lsp
+- [1.24 untested-live] Save VERIFIES both directions of standards change, with a symmetric NAMED CLI readout:
+  - ADD: a layer in the drawing not yet in the CSV is gated by lk:confirm-new-layer ([Yes/No/Reject], existing
+    behavior). Confirmed adds are now listed by name: "Added to standards (N confirmed): LAYER-A, LAYER-B";
+    declines reported as a count ("Declined N new layer(s).").
+  - REMOVE: a layer in the old CSV but no longer in the drawing (and not permanently rejected) is gated by
+    lk:confirm-remove-std ("...is in standards but no longer in the drawing -- remove from standards? [Yes/No]
+    <No>"); declining writes the layer's original CSV row back, so nothing is silently dropped. Confirmed
+    removals listed: "Removed from standards (N confirmed, no longer in drawing): LAYER-A, LAYER-B".
+  - Prompt strings use a literal forward-slash separator ([Yes/No]); a backslash ([Yes\No]) eats the separator
+    and breaks AutoCAD's keyword highlighting.
+  - Contrast LK-FILTER Save, which only PRINTS removed filters/members — no prompt (kept by design).
 - [1.23 works (headless)] Save now backs up the previous PV_layer_standards.csv to config\backups\
   (lk:backup-csv) before overwriting, so a mistaken Save is one-step recoverable. (Headless: file
   loads clean + lk:backup-csv verified copying to config\backups\; end-to-end Save flow GUI-pending.)
@@ -396,7 +416,10 @@ persistence verified headless). Prior 1.2 no-seed/pick-at-init; 1.1 block/elemen
 
 ## LK-FILTER (layer group filters)
 Commands: LK-FILTER  [Set/Save]   (1.2: was LK-FILTERSET/LK-FILTERSAVE -> one LK-FILTER)
-File: lkfilter/lkfilter-1.23.lsp
+File: lkfilter/lkfilter-1.24.lsp
+- [1.24 untested-live] Save now diffs old CSV vs new output and reports: "Removed filter: X" for any
+  filter that no longer exists in the drawing's ACLYDICTIONARY, and "Filter 'X': removed N layer(s):
+  A, B" for any filter that lost members. Old CSV is read before backup/overwrite.
 - [1.23 works (headless)] Save now backs up the previous PV_layer_filters.csv to config\backups\
   (lk:backup-csv, shared with LK-STD) before overwriting, so a mistaken Save is one-step recoverable.
 - [1.22 untested-live] lk:filt-ensure-layer creates curated CSV members WITHOUT prompting, but

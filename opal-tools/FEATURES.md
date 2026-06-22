@@ -33,10 +33,11 @@
 
 ## O-LOAD
 Commands: O-LOAD, OLOAD
-File: oload/oload-1.04.lsp
+File: oload/oload-1.10.lsp
 Latest confirmed: 1.03 works
 
 ### Current Features
+- [1.10 works] O-LOAD now ALSO (re)loads LayerKit, so OLOAD refreshes both suites in one shot -- they're no longer reloaded independently. _oload-lk-root resolves the sibling layer-kit\ root (honors *lk-suite-root* when it points at a real folder, else derives it beside the O-Suite root via vl-filename-directory; true in both dev and bundle), _oload-layerkit loads the lkload loader if C:LK-LOAD isn't defined yet, sets *lk-suite-root*, mirrors *oload-quiet* into *lkload-quiet*, and calls C:LK-LOAD. Headless: OLOAD loaded LayerKit with lkstd 1.24 + lkfilter 1.24 active. NOTE: command-existence is tested with (car (atoms-family 1 (list "C:LK-LOAD"))) -- the bare atoms-family list is (nil) when undefined, which is TRUTHY, so null/not-null tests are wrong (that was the first-cut bug that aborted O-LOAD with "no function definition: C:LK-LOAD"). The bundle bootstrap no longer calls C:LK-LOAD separately (O-LOAD owns it -- no double load).
 - [1.04 untested] Relocatable root: _oload-root returns *o-suite-root* when bound (set by the deploy bootstrap), else the original hardcoded dev path. Enables the ApplicationPlugins bundle install.
 - [1.04 untested] Auto-run of O-SET on load is now suppressed in quiet mode, so silent startup (bootstrap) never opens a calibration prompt.
 - [1.04 works] On a manual (non-quiet) load O-SET is ALWAYS re-run -- dropped the "already calibrated -- skip" branch and the stale "box-select any 2x2+ block" prompt (O-SET is click-free now), so geometry recalibrates every OLOAD. NOTE: OLOAD does not reload the loader itself (oload/ is on the skip list), so editing oload-1.04 needs a manual (load "...oload-1.04.lsp") or an AutoCAD restart to take effect.
@@ -152,19 +153,130 @@ ignored 27; module 44.41 x 89.69; Gap X 14.58 + 13.60 (two spacings), Gap Y 0.25
 ### Notes / assumptions
 - Module layer is "PV-MODS" (oconfig 1.03). The modal footprint defines "a module"; if PV-MODS
   legitimately holds two module sizes, O-SET calibrates to the more common one and treats the
-  other as non-module. Pitch-cluster tol 0.5 keeps two real gaps (e.g. 58 vs 59) distinct;
-  footprint-match tol is 5%.
+  other as non-module. Pitch-cluster tol 0.5 keeps two real gaps (e.g. 58 vs 59) distinct.
+  Footprint match (1.12): LONG side tol = max(2.0, 2% of long), SHORT side tol = max(4.0, 10% of short).
+
+---
+
+## O-MODSIZE
+Commands: O-MODSIZE, OMODSIZE
+File: omodsize/omodsize-1.02.lsp
+Latest confirmed: 1.01 worked live (227 modules normalized). 1.02 engine PASSES headless
+(mixed array: 8 matched, BEFORE off-target 3 -> Normalize -> AFTER 0; narrow module resized to
+44.41x89.69 with centre kept). 1.02 prompts (List/last-used/regen) untested in GUI.
+
+### Current Features
+- [1.02 works headless] Shares **ogeo** (detection/records/module-dims). FIXES the misleading
+  off-target: now measured vs the CHOSEN TARGET, so a uniform array reads off=0 (was vs a stale
+  modal -> always non-zero, e.g. 227). Target sources: [Yes] default = last-used (remembered in
+  registry HKCU\Software\Ocotillo\OpalTools LastModW/H) else config dims; [List] pick a named
+  module from *ocfg-modules*; [Custom] type W,H (defaulting to last-used). Resize is winding-proof
+  (each vertex placed by the SIGN of its projection on the module's short/long axes). Quiet:
+  CMDECHO 0 + single vla-regen at end (no per-entity entupd -> kills the 227x viewport-switch spam).
+- [1.01 works headless] Opens with [Report/Normalize] <Report>. REPORT is read-only: prints the
+  footprint distribution (size buckets short x long -> count, min/max short & long side + spread,
+  count off the modal/target). Run it BEFORE and AFTER a normalize to verify. Detection shared with
+  Normalize via _oms-detect, so both see the same set. Verified: before=3 buckets/off=13, after=1
+  bucket/off=0.
+- [1.0 works headless] Resize engine: rebuilds each module's 4 corners about its OWN centre along
+  its OWN edge axes (u = p1-p0, v = p3-p0), so position + rotation are preserved and only side
+  lengths change. Writes corners back in place via entmod on the polyline's own vertices + entupd
+  (heavyweight POLYLINE) or entmod of the group-10 list (LWPOLYLINE) -- entity identity / handle /
+  XDATA preserved (no delete+recreate). Verified headless: 41x90 @ 20deg -> 44.41x89.69, centre kept.
+- [1.0 works headless] Orientation-agnostic: the target's LONG dimension is laid on whichever module
+  edge is currently the long one, so a module wound from a different start corner normalizes correctly.
+- [1.0 untested] Detection mirrors O-SET 1.12 exactly (own copy of the dual-path reader, modal
+  footprint, long-tight/short-loose match) so it sees the SAME module set (227 on TSC11590).
+  Prefers O-SET's calibrated *oset-mod-w/h* as the default target when present.
+- [1.0 untested] UI: reports count + modal footprint; [Yes/No/Custom] target (Custom prompts W/H);
+  prints off-size vs already-on-size counts; explicit [Yes/No] <No> gate before any edit; only
+  resizes modules off by > 0.01; reports resized / unchanged / failed (locked layer or not 4-corner).
+- [1.0 design] MODULES ONLY -- edits polylines on *ocfg-layer-modules*; racking/strings/annotation
+  untouched. Intended as a pre-stringing cleanup, paired with O-MODSPACE (rows + columns).
+
+### Notes / assumptions
+- Only resizes polylines with exactly 4 geometry vertices; anything else is left untouched.
+- Resize is about the centroid, so a normalized module grows/shrinks symmetrically -- spacing to
+  neighbours shifts by half the size delta per side. Regularize spacing afterwards with O-MODSPACE.
+- Destructive: always gated behind an explicit Yes. No multi-step undo beyond AutoCAD's U.
+
+---
+
+## O-GRID
+Commands: O-GRID, OGRID
+File: ogrid/ogrid-1.0.lsp
+Latest confirmed: 1.0 engine PASSES headless (north-bay array: detect-pattern -> rm10-evo,
+col-gap 0.25, _ogeo-place resize+move to target exact). Full command (entsel + getpoint +
+confirm) untested in GUI.
+
+### Current Features
+- [1.0 works headless] "Make this array perfect." Pick a REFERENCE module (its size = target,
+  and seeds the flood-fill array), pick a FIXED corner point (origin -- the nearest module stays
+  put), O-GRID auto-detects the row pattern + within-row gap (confirm/override [Yes/Pattern/Type]),
+  then RESIZES every module to the reference size AND snaps it to its ideal lattice node. Modules
+  only (PV-MODS). Explicit Yes before any change; CMDECHO 0 + single vla-regen.
+- Reuses ogeo: _ogeo-array-from (flood-fill), _ogeo-detect-pattern / _ogeo-col-gap (auto-detect),
+  _ogeo-row-positions (pattern -> cumulative offsets), _ogeo-place (winding-proof resize+move).
+- Lattice: rows grouped along the module short axis (pattern spacing), cols along the long axis
+  (uniform within-row gap). Origin module's (i0,j0) anchors the grid so it doesn't move.
+
+### Notes / assumptions
+- Anchor point selects which corner module is the fixed origin (nearest module); the point need
+  not coincide with a module. Pattern auto-detected from current geometry vs *ocfg-patterns*.
+- v1.0 uniform lattice per axis with the chosen pattern; assumes a regular grid (one flood-filled
+  array). Uses the reference module's edge axes for the whole array (perfect alignment).
+
+---
+
+## Config + ogeo (shared, CSV-driven)
+Files: config/modules.csv, config/patterns.csv ; oconfig/oconfig-1.05.lsp parses them ;
+ogeo/ogeo-1.03.lsp (shared lib, no command).
+Latest confirmed: parse + ogeo helpers PASS headless (1 module, 5 patterns; module-dims snaps to
+canonical; flood-fill isolates one array of two; north-bay row-positions 0/57.91/116.82/175.73).
+
+### Current Features
+- [1.04 works headless] oconfig parses config\modules.csv -> *ocfg-modules* (name short long
+  within-gap) and config\patterns.csv -> *ocfg-patterns* (name kind gaps end-side). CSV so the
+  user adds modules/patterns in Excel. Pattern `kind`: uniform | endbay (north-bay) | alternating
+  (dual-tilt) | sequence. Seeded: gridflex10, rm10-evo, fr10-dual, uniform, north-bay.
+  Fallback to built-in defaults if a CSV is missing. oload-1.07 skips the config\ data folder.
+- [1.0 works headless] ogeo shared lib: module reader/record (ent typ center ushort ulong short
+  long nverts), _ogeo-module-dims (snap detected dominant to config), _ogeo-array-from (proximity
+  flood-fill, thr = 1.4 x long), _ogeo-detect-pattern / _ogeo-col-gap (measure vs config),
+  _ogeo-row-positions, _ogeo-place. Consumed by O-GRID and O-MODSPACE. Seeds the
+  roadmap's planned ogeo/ refactor.
+- [1.01 untested] _ogeo-all-modules graceful layer fallback (configured layer, else shape-gated
+  all-layer scan -- 4-corner + footprint within tol of *ocfg-modules*; NOT a denylist). Shared
+  _ogeo-pick-pattern (was ogrid local), _ogeo-axis-groups (row/col grouping), _ogeo-move.
+- [1.03 untested] _ogeo-real-modules (recs): keep only records matching the dominant
+  (modal) footprint -- the "real modules" O-SET counts. Mirrors oset's _oset-match-mods tolerances
+  (tol-s = max(4.0, 0.10*short), tol-l = max(2.0, 0.02*long)), orientation-agnostic; returns recs
+  unchanged if the footprint is indeterminate. The single home for "what counts as a module";
+  consumed by ZZA and SSM. Built on _ogeo-dominant (no footprint math re-derived).
+- [1.02 untested] _ogeo-all-modules ends with a VIEWPORT-VISIBILITY filter (_ogeo-filter-shown):
+  module-shaped objects whose centre is not inside any layout viewport's model-space window are
+  ignored -- template copies parked in model space, cutsheet/detail geometry. Locks every consuming
+  tool (O-MODSPACE, O-PVSPACE, O-GRID, O-MODSIZE) onto the ONE documented concentration of modules.
+  Windows from VLA AcadPViewport props (ViewCenter/ViewHeight/Width/Height/TwistAngle); plan-view,
+  non-paper-background (DXF id 1), twist-aware; clipped/3D viewports kept permissively. SAFE: filter
+  off (*ocfg-filter-viewport* nil), no viewports in the drawing, or a filter that would drop ALL
+  modules -> keeps everything. Reports the count ignored. Headless: load + window math + twist tested;
+  live VLA viewport read on a real sheet UNTESTED.
 
 ---
 
 ## O-CONFIG
-File: oconfig/oconfig-1.02.lsp
-Latest confirmed: 1.02 untested (1.0 works)
+File: oconfig/oconfig-1.05.lsp
+Latest confirmed: 1.05 untested (1.0 works)
 
 ### Current Features
 - [1.0 works] Sets 18 *ocfg-layer-* globals for all Opal layer names
 - [1.0 works] Loaded first by O-LOAD before any tool; single edit point for re-deployment
 - [1.02 untested] *ocfg-layer-dc* repointed "PV-DC-PATH" -> "E-STRINGING" (O-DC string path layer)
+- [1.03 untested] *ocfg-layer-modules* "PV-MODS" (module source layer, confirmed live)
+- [1.04 untested] modules.csv/patterns.csv -> *ocfg-modules* / *ocfg-patterns* (see Config + ogeo)
+- [1.05 untested] *ocfg-filter-viewport* behavior flag (default T): the shared collector ignores
+  module-shaped objects not shown in any layout viewport. Set nil to disable (consumed by ogeo).
 
 ### Globals written (all strings, all *ocfg-layer-* prefix)
 - stringing      "PV-STRINGING"
@@ -293,10 +405,165 @@ Latest confirmed: 1.28 untested (1.27, 1.26, 1.25, 1.24, 1.23, 1.22, 1.21, 1.20,
 
 ---
 
-## O-ROWSPACE
-Commands: O-ROWSPACE, OROWSPACE  ->  opens [Set/Measure]
-File: orespace/orespace-1.09.lsp  (folder still named orespace/)
-Latest confirmed: 1.09 untested (1.08 works)
+## O-MODSPACE  (was O-ROWSPACE)
+Commands: O-MODSPACE, OMODSPACE  ->  opens [Set/Measure]
+File: omodspace/omodspace-1.2.lsp   (new folder; predecessor orespace/ shelved to dormant/)
+Latest confirmed: 1.2 untested
+
+### 1.0 -- rename + generalize to rows AND columns
+- [1.0 untested] Renamed O-ROWSPACE -> O-MODSPACE (alias OMODSPACE); new folder omodspace/.
+  Generalized from row-only to BOTH axes: rows step along the module SHORT edge, columns along
+  the LONG edge. Helpers _omsp-*; predecessor orespace/ moved to dormant/.
+- [1.0 untested] SINGLE module pick floods the whole array (shared _ogeo-array-from). The old
+  "select the array (ssget) then pick a module" two-step is gone. Records are built on the picked
+  module's OWN layer, so it works on whatever layer the array lives on (not only the config layer).
+- [1.0 untested] Measure reports BOTH axes (rows + columns: per-gap list + min/max/avg) plus the
+  detected config pattern name.
+- [1.0 untested] Set corrects BOTH axes in one run, anchored on the picked module (its row AND its
+  column stay fixed): Rows [Uniform/North-bay/Pattern/Skip] (defaults from *ocfg-patterns* via
+  _ogeo-detect-pattern; Pattern opens the shared picker for the no-match case); Columns [Set/Skip]
+  (default within-gap from *ocfg-modules*). Each axis is independent -- Skip leaves it untouched.
+  Plan prints; explicit Yes. Modules only (no racking/strings moved -- consistent with O-GRID).
+- [1.0 untested] Built on ogeo: _ogeo-axis-groups (grouping), _ogeo-row-positions (ideal positions),
+  _ogeo-move (locked-safe). The two axes are orthogonal, so row + column shifts are computed from the
+  original record set and applied independently.
+
+### 1.1 -- anchor-point model + reusable engine
+- [1.1 untested] Set replaces the module pick with an ANCHOR POINT (OSNAP on, snap to a corner).
+  Array = the array of the module NEAREST the point (`_omsp-array-at` -> `_ogeo-all-modules` +
+  `_ogeo-array-from`). The point also selects the FIXED row + column (`_omsp-group-idx-at`: the
+  groups nearest the point stay put). Handles arrays with NO module at the corner -- anchors on the
+  point + nearest group, never on a module-at-corner.
+- [1.1 untested] Measure switches to click-anywhere-near (OSNAP off); nearest module identifies
+  the array (no anchor needed; read-only).
+- [1.1 untested] North-bay (only) now picks an edge-validated module in the NORTH-END row
+  (`_omsp-pick-north`): re-prompts if the picked module is not on an end row; sets `endside`
+  (low/high). Replaces the old `[Yes/No]` "is the fixed row the north-bay row" question.
+- [1.1 untested] Set body factored into `_omsp-set-one (arr anchorpt rtgt ctgt)` so O-PVSPACE can
+  batch many arrays with no duplicated spacing math.
+
+### 1.2 -- split the apply core out of _omsp-set-one
+- [1.2 untested] The move core is split into `_omsp-apply-one (arr anchorpt rtgt ctgt)` -- NO
+  prompts: recomputes the fixed row/col from the array's own anchor point, builds the shifts, moves
+  modules (CMDECHO off), returns `(nok nfail)`. `_omsp-set-one` keeps the single-array plan +
+  `[Yes/No]` and calls `_omsp-apply-one` on Yes (O-MODSPACE behavior unchanged). O-PVSPACE 1.1
+  drives `_omsp-apply-one` directly to batch one param set across many arrays with one combined confirm.
+
+## SSA  (VVN nomenclature)
+Commands: SSA  ->  click one module, select the whole array
+File: ssa/ssa-1.0.lsp   (new folder)
+Latest confirmed: 1.0 PASSES headless load (ogeo + ssa load clean; C:SSA defined).
+GUI pick + grip selection untested.
+Naming: VVN grammar -- verb SS (select) + noun A (array). New noun A scopes selection to ONE
+array, distinct from the rostered SSM (select ALL modules drawing-wide). Lives in opal-tools
+(runs today) on the ogeo shared library; bare VVN name, no O- prefix / aliases.
+
+### 1.0 -- single-click array selection
+- [1.0 untested] Click one module (OSNAP off, click-near; seed = nearest module centre, same
+  read-only interaction as O-MODSPACE Measure). The connected array floods via shared
+  `_ogeo-array-from` and is delivered to the active pickfirst set with `(sssetfirst nil ss)` --
+  grips show, no window-drag. Nothing is modified; run any command next (ERASE/MOVE/CHPROP/layer/
+  PROPERTIES) and it acts on the whole array.
+- [1.0 untested] Built on ogeo only (`_ogeo-all-modules` with graceful layer fallback +
+  `_ogeo-array-from`); local helper `_ssa-nearest`. No geometry re-implemented.
+- [1.0 untested] VERIFY collision: confirm SSA is not a native command / pgp alias in use (VVN
+  collision rule). If it collides, UNDEFINE in loader (native unused) or rename (native in use).
+
+## ZZA  (VVN nomenclature)
+Commands: ZZA  ->  zoom window to all PV array boundaries
+File: zza/zza-1.1.lsp   (new folder)
+Latest confirmed: 1.1 PASSES headless load (ogeo 1.02 + zza load clean; C:ZZA defined).
+GUI zoom untested.
+Naming: VVN grammar -- verb ZZ (zoom, NEW verb) + noun A (array). Frames every PV module in one
+view. Lives in opal-tools (runs today) on the ogeo shared library; bare VVN name, no aliases.
+
+### 1.0 -- zoom to all arrays
+- [1.0 untested] No pick. Collects every module via `_ogeo-all-modules` (configured layer first,
+  shape-gated all-layer fallback), accumulates the WCS bounding box (`vla-getboundingbox` per
+  module -- correct for rotated Solesca modules), and `vla-ZoomWindow`s to it with a 5% margin.
+- [1.0 untested] View-only: nothing in the drawing is modified. No geometry re-implemented
+  (ogeo for detection; getboundingbox for extents).
+- [1.0 untested] VERIFY collision: confirm ZZA is not a native command / pgp alias in use
+  (acad.pgp checked: no ZZA alias).
+
+### 1.1 -- frame only real modules
+- [1.1 untested] Pipes `_ogeo-all-modules` through `_ogeo-real-modules` (ogeo 1.02) before the
+  bbox loop, so stray clutter on the module layer (mismatched footprints) no longer stretches the
+  zoom window. The framed count now equals O-SET's module count. Readout says "N real modules".
+
+## SSM  (VVN nomenclature)
+Commands: SSM  ->  select every real PV module in the drawing
+File: ssm/ssm-1.0.lsp   (new folder)
+Latest confirmed: 1.0 PASSES headless load (ogeo 1.02 + ssm load clean; C:SSM defined).
+GUI select + pgp-collision behavior untested.
+Naming: VVN grammar -- verb SS (select) + noun M (module), drawing-wide (cf. SSA = one array).
+
+### 1.0 -- select all modules
+- [1.0 untested] No pick. `_ogeo-all-modules` -> `_ogeo-real-modules` (modal-footprint gate, so
+  clutter on the module layer is excluded) -> `(sssetfirst nil ss)`. Grips active; nothing
+  modified. Selected count should equal O-SET's module count.
+- [1.0 untested] COLLISION: acad.pgp aliases `SSM -> *SHEETSET`. A LISP `C:SSM` is expected to
+  shadow the pgp alias (no acad.pgp edit, per VVN rule). VERIFY live: type SSM and confirm it
+  selects, not opens Sheet Set Manager. If SHEETSET opens, escalate to a rename.
+
+## SS  (VVN nomenclature)
+Commands: SS  ->  select all objects on the picked entity's layer
+File: ss/ss-1.0.lsp   (new folder)
+Latest confirmed: 1.0 PASSES headless load (C:SS defined).
+GUI select untested.
+Naming: VVN grammar -- bare SS = the SELECT verb at full breadth (pick one object, get its whole
+layer). Reassigned from the roster's planned "master tile menu" (no menu built yet); SSL is now
+redundant and not built. Generic (any layer / object type); no ogeo dependency.
+
+### 1.0 -- select by layer
+- [1.0 untested] `(entsel)` -> picked entity's DXF group-8 layer -> `(ssget "X" (cons 8 lay))`
+  -> `(sssetfirst nil ss)`. Grips active; nothing modified. Nil pick re-prompts via message.
+- [1.0 untested] VERIFY collision: confirm bare SS is not a native command / pgp alias in use
+  (acad.pgp checked: no SS alias).
+
+## QQA  (VVN nomenclature)
+Commands: QQA  ->  click a module, report its array (read-only)
+File: qqa/qqa-1.0.lsp   (new folder)
+Latest confirmed: 1.0 PASSES headless load (ogeo + qqa load clean; C:QQA defined).
+GUI pick + readout untested.
+Naming: VVN grammar -- verb QQ (query) + noun A (array).
+
+### 1.0 -- query array
+- [1.0 untested] Click-near (OSNAP off; seed = nearest module centre) -> `_ogeo-array-from`.
+  Reports module count, rows x cols (`_ogeo-axis-groups`), module footprint
+  (`_ogeo-module-dims`), row gaps (`_ogeo-row-gaps`), column gap (`_ogeo-col-gap`), and matched
+  config pattern (`_ogeo-detect-pattern`). Read-only -- nothing drawn or modified.
+- [1.0 untested] Every number comes from an existing ogeo helper; no geometry/spacing math added.
+  Local helpers `_qqa-nearest`, `_qqa-nstr` only. Should agree with O-MODSPACE Measure.
+
+## O-PVSPACE
+Commands: O-PVSPACE, OPVSPACE
+File: opvspace/opvspace-1.1.lsp
+Latest confirmed: 1.1 untested
+
+### Purpose
+Re-space MANY arrays in a layout in one command, in two phases: batch-pick every array's
+anchor point, then get prompted once, then apply that one param set to all at once.
+
+### Current Features
+- [1.1 untested] Phase 1 -- BATCH-PICK: loop anchor point (OSNAP on) -> `_omsp-array-at`;
+  each point detects its array and fixes that array's anchor row/col. Re-picking the same array
+  (seed-entity match) is skipped; each kept array is highlighted (`redraw` seed) + counted. Enter
+  finishes; no arrays -> nothing to do.
+- [1.1 untested] Phase 2 -- PROMPT ONCE: rows + columns resolved against the FIRST picked array
+  as representative (`_omsp-rows-target` / `_omsp-cols-target`). North-bay picks the odd-bay end
+  exactly once and reuses it for every array (arrays share orientation across a layout).
+- [1.1 untested] Phase 3 -- ONE combined plan (array count + rows/cols target) + a single
+  `[Yes/No]`, then `_omsp-apply-one` over every picked array; each array keeps its own anchored
+  row/col fixed. Tallies arrays re-spaced + total module-moves; locked-layer warning on failures.
+- [1.1 untested] Pure wrapper over O-MODSPACE's `_omsp-*` engine -- modules only, no duplicated math.
+
+### Dropped
+- [1.0] Per-array interleaved `[Same/Configure/Skip]` and the per-array plan + `[Yes/No]` confirm.
+  Replaced by one uniform param set + one combined confirm applied to all picked arrays (the v1.0
+  "Same is fine across a layout" assumption is now the default for the whole batch).
+
+### Predecessor history -- O-ROWSPACE / O-RESPACE (folder orespace/, shelved to dormant/)
 
 ### Purpose
 Re-space an array's rows when the racking system changes (e.g. Unirac GridFlex 10 ->

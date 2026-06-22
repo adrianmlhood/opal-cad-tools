@@ -45,8 +45,10 @@
 (_opal-latest (strcat *o-suite-root*  "oload\\"))
 (_opal-latest (strcat *lk-suite-root* "lkload\\"))
 
+;; O-LOAD (v1.10+) loads the O-Suite AND then LayerKit (LK-LOAD) in one shot, so a
+;; single C:O-LOAD brings up both suites. The lkload loader is loaded above so the
+;; LK-LOAD command exists for manual use; we don't call it here (O-LOAD owns it).
 (if (not (null (atoms-family 1 (list "C:O-LOAD"))))  (C:O-LOAD))
-(if (not (null (atoms-family 1 (list "C:LK-LOAD")))) (C:LK-LOAD))
 
 (setq *oload-quiet* nil *lkload-quiet* nil)
 

@@ -51,6 +51,16 @@
   .foot{padding:18px 30px; border-top:1px solid var(--line); color:var(--muted); font-size:13px;
     display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px}
   @media (max-width:520px){ .grid{grid-template-columns:1fr} }
+  .dm-btn{flex:none;background:none;border:1px solid var(--line);border-radius:8px;color:var(--muted);cursor:pointer;padding:5px 11px;font:13px/1 -apple-system,Segoe UI,sans-serif;transition:border-color .15s,color .15s;margin-left:12px}
+  .dm-btn:hover{border-color:var(--gold);color:var(--ink)}
+  .dm-btn::before{content:"Dark"}
+  html.dark .dm-btn::before{content:"Light"}
+  html.dark{color-scheme:dark;--ink:#e4e6ea;--muted:#8a9099;--line:#2c2f35;--bg:#16181c;--card:#1f2228;--gold-d:#d4a830}
+  html.dark .n{background:#3a3d45}
+  html.dark .n.alt{background:#25200e;color:#d4a830}
+  html.dark code{background:#252830;border-color:var(--line);color:var(--ink)}
+  html.dark .pill{background:#25200e;border-color:#7a6010;color:#d4a830}
+  html.dark strong{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -72,6 +82,7 @@
         <p class="sub">AutoCAD design tools for the Opal team</p>
       </div>
       <span class="ver">Version 1.0.0</span>
+      <button class="dm-btn" id="dm" aria-label="Toggle dark mode"></button>
     </div>
 
     <div class="body">
@@ -136,5 +147,8 @@
     </div>
   </div>
 </div>
+<script>
+(function(){var h=document.documentElement,s=localStorage.getItem('opal-dark');if(s==='1'||(s===null&&window.matchMedia('(prefers-color-scheme:dark)').matches))h.classList.add('dark');document.addEventListener('DOMContentLoaded',function(){document.getElementById('dm').addEventListener('click',function(){var on=h.classList.toggle('dark');localStorage.setItem('opal-dark',on?'1':'0');});});})();
+</script>
 </body>
 </html>

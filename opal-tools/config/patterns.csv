@@ -1,0 +1,6 @@
+name,kind,gaps,end_side,notes
+gridflex10,uniform,13,,GridFlex 10 fixed tilt -- uniform 13in row spacing
+rm10-evo,endbay,13.5|14.5,low,RM10 EVO north-bay (end|field)
+fr10-dual,alternating,3|14,,FR10 dual tilt back-to-back (pair|field)
+uniform,uniform,14.5,,generic uniform
+north-bay,endbay,13.5|14.5,low,generic north-bay (end|field)
