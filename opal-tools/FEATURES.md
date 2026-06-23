@@ -48,7 +48,9 @@ Latest confirmed: 1.03 works
 - [1.0 works] Tracks loaded versions in *oload-versions* alist: ((folder-name . "x.xx") ...)
 - [1.04 works] Auto-runs O-SET after all tools load on a manual (non-quiet) load -- now unconditional (was: only if *oset-mod-w* nil/zero)
 - [1.01 works] Skips ".", "..", tools/ from directory scan
-- [1.02 works] *oload-quiet* T suppresses per-tool output (used by acad.lsp auto-loader)
+- [1.02 works] *oload-quiet* T suppresses per-tool output (set by the bundle bootstrap.lsp on
+  silent startup; the old dev acad.lsp auto-loader was removed -- it was broken (stale Opal\ path)
+  and unused; the ApplicationPlugins bootstrap.lsp is the only autoloader)
 - [1.02 works] Quiet mode: single summary line "O-Suite loaded -- N tools. O-REF for help."
 - [1.03 works] Version extraction from filename: "obound-1.02.lsp" → "1.02" (major.minor only)
 - [1.03 works] Skipped folders listed at end: "Skipped (no .lsp): ..."
@@ -108,11 +110,15 @@ Latest confirmed: 1.0 works (live DEV->BUNDLE->DEV verified, git summary shown, 
 
 ## O-SET
 Commands: O-SET, OSET
-File: oset/oset-1.12.lsp
+File: oset/oset-1.14.lsp
 Latest confirmed: 1.12 works (live on TSC11590: 287 polylines -> 254 4-corner -> 227 modules,
 ignored 27; module 44.41 x 89.69; Gap X 14.58 + 13.60 (two spacings), Gap Y 0.25)
 
 ### Current Features
+- [1.14 untested] Honors an active O-ZONE: when *ozone-bounds* is set, O-SET keeps only modules
+  whose centre (nth 1 in the O-SET record) is inside the zone before calibrating, via ogeo's
+  _ogeo-pt-in-zone. Lets the user calibrate ONE array when model space holds several. No zone ->
+  unchanged (scans all modules on the layer). Reports the in-zone count when it trims.
 - [1.12 works] Module match is ORIENTATION-AGNOSTIC and gates on the LONG side. Each polyline's
   (short,long) edge pair is compared to the module's (short,long): LONG side matched tightly
   (tol = max(2.0, 2% of long)) because panel length is the stable signal separating modules from
@@ -229,8 +235,8 @@ confirm) untested in GUI.
 ---
 
 ## Config + ogeo (shared, CSV-driven)
-Files: config/modules.csv, config/patterns.csv ; oconfig/oconfig-1.05.lsp parses them ;
-ogeo/ogeo-1.03.lsp (shared lib, no command).
+Files: config/modules.csv, config/patterns.csv ; oconfig/oconfig-1.06.lsp parses them ;
+ogeo/ogeo-1.08.lsp (shared lib, no command).
 Latest confirmed: parse + ogeo helpers PASS headless (1 module, 5 patterns; module-dims snaps to
 canonical; flood-fill isolates one array of two; north-bay row-positions 0/57.91/116.82/175.73).
 
@@ -251,8 +257,31 @@ canonical; flood-fill isolates one array of two; north-bay row-positions 0/57.91
 - [1.03 untested] _ogeo-real-modules (recs): keep only records matching the dominant
   (modal) footprint -- the "real modules" O-SET counts. Mirrors oset's _oset-match-mods tolerances
   (tol-s = max(4.0, 0.10*short), tol-l = max(2.0, 0.02*long)), orientation-agnostic; returns recs
-  unchanged if the footprint is indeterminate. The single home for "what counts as a module";
-  consumed by ZZA and SSM. Built on _ogeo-dominant (no footprint math re-derived).
+  unchanged if the footprint is indeterminate. The single home for "what counts as a module".
+  Built on _ogeo-dominant (no footprint math re-derived).
+- [1.04 untested] _ogeo-modules (): THE high-level entry for "the real modules in the drawing" --
+  composes _ogeo-all-modules (scan + graceful fallback + viewport filter) with _ogeo-real-modules
+  (footprint gate). SSM (1.1) / ZZA (1.2) / QQA (1.2) all call this instead of repeating the
+  two-step `(_ogeo-real-modules (_ogeo-all-modules))` inline, so the working module set is
+  defined in exactly ONE place.
+- [1.05 untested] _ogeo-nearest-rec (recs pt) + _ogeo-array-at (pt): the click->array primitive.
+  _ogeo-array-at seeds the flood-fill from the shared real-module set (_ogeo-modules), so EVERY
+  "click a module" tool resolves the SAME array for the same click (no tool seeds off clutter --
+  fixes a latent inconsistency where ssa seeded off the raw set, qqa off the real set). Replaced
+  the per-tool copies: _omsp-nearest-rec/_omsp-array-at (omodspace 1.3 -> now a thin delegate, so
+  opvspace inherits), _qqa-nearest + inline (qqa 1.3), _ssa-nearest + inline (ssa 1.1).
+- [1.07 untested] _ogeo-all-modules no longer prints the raw "[modules] N on layer PV-MODS"
+  element count on the success path. Standing rule: NO O-Suite tool reports the raw PV-MODS
+  element count -- ONLY the real-module count (surfaced by the consuming tool after the footprint
+  gate). The graceful-fallback message (layer empty -> shape-gated scan) and the viewport-outlier
+  message stay (neither is the raw layer count). Affects every consumer (SSA / QQA / SSM / O-GRID /
+  O-MODSPACE / O-PVSPACE / O-MODSIZE) in one place. (O-SET's own calibration funnel is separate --
+  it still shows raw -> 4-corner -> modules as a diagnostic; flag to the user if that must change.)
+- [1.06 untested] _ogeo-array-from flood-fill: membership tested against a VISITED ename list with
+  the built-in (member) (short-circuits in C) instead of the linear, non-short-circuiting
+  _ogeo-ename-in scan over the growing result -- the redundant O(n) re-scan per candidate is gone
+  on the suite's hottest path (QQA/SSA/O-MODSPACE/O-PVSPACE click->array; SSM/ZZA per array).
+  Same connected set; _ogeo-ename-in dropped.
 - [1.02 untested] _ogeo-all-modules ends with a VIEWPORT-VISIBILITY filter (_ogeo-filter-shown):
   module-shaped objects whose centre is not inside any layout viewport's model-space window are
   ignored -- template copies parked in model space, cutsheet/detail geometry. Locks every consuming
@@ -262,16 +291,28 @@ canonical; flood-fill isolates one array of two; north-bay row-positions 0/57.91
   off (*ocfg-filter-viewport* nil), no viewports in the drawing, or a filter that would drop ALL
   modules -> keeps everything. Reports the count ignored. Headless: load + window math + twist tested;
   live VLA viewport read on a real sheet UNTESTED.
+- [1.08 untested] Visibility filter is now SCOPED TO ONE SHEET. _ogeo-vp-windows builds windows only
+  from the viewports on the layout named *ocfg-module-sheet* (oconfig, default "E-1.0"; wcmatch) --
+  refactored into _ogeo-vp-window-of (one ename), _ogeo-vp-windows-all (DXF scan, every layout) and
+  _ogeo-vp-windows-sheet (VLA Layouts iteration, by name). GRACEFUL FALLBACK: if *ocfg-module-sheet*
+  is nil, the sheet is absent/frames nothing, or there's no COM doc (headless), it drops to
+  any-layout windows -- never strands modules. So a "real module" defaults to one documented on E-1.0.
+- [1.08 untested] O-ZONE override: _ogeo-pt-in-zone + _ogeo-zone-keep (centre = nth 2) gate the
+  shared collector. _ogeo-all-modules now ends with a cond: an active *ozone-bounds* rectangle
+  REPLACES the sheet/viewport filter (manual fallback for multi-array model space), else the E-1.0
+  sheet filter applies. Inert/back-compatible when *ozone-bounds* is unbound/nil (set by O-ZONE).
 
 ---
 
 ## O-CONFIG
-File: oconfig/oconfig-1.05.lsp
-Latest confirmed: 1.05 untested (1.0 works)
+File: oconfig/oconfig-1.06.lsp
+Latest confirmed: 1.06 untested (1.0 works)
 
 ### Current Features
 - [1.0 works] Sets 18 *ocfg-layer-* globals for all Opal layer names
 - [1.0 works] Loaded first by O-LOAD before any tool; single edit point for re-deployment
+- [1.06 untested] *ocfg-module-sheet* "E-1.0" -- the layout whose viewport defines the "real"
+  modules (consumed by ogeo's _ogeo-vp-windows). Wildcard ok; nil = any layout (old behavior).
 - [1.02 untested] *ocfg-layer-dc* repointed "PV-DC-PATH" -> "E-STRINGING" (O-DC string path layer)
 - [1.03 untested] *ocfg-layer-modules* "PV-MODS" (module source layer, confirmed live)
 - [1.04 untested] modules.csv/patterns.csv -> *ocfg-modules* / *ocfg-patterns* (see Config + ogeo)
@@ -407,8 +448,9 @@ Latest confirmed: 1.28 untested (1.27, 1.26, 1.25, 1.24, 1.23, 1.22, 1.21, 1.20,
 
 ## O-MODSPACE  (was O-ROWSPACE)
 Commands: O-MODSPACE, OMODSPACE  ->  opens [Set/Measure]
-File: omodspace/omodspace-1.2.lsp   (new folder; predecessor orespace/ shelved to dormant/)
-Latest confirmed: 1.2 untested
+File: omodspace/omodspace-1.3.lsp   (new folder; predecessor orespace/ shelved to dormant/)
+Latest confirmed: 1.3 PASSES headless load. 1.3 = _omsp-array-at now delegates to shared
+_ogeo-array-at (real-module-seeded; dropped local _omsp-nearest-rec). GUI untested.
 
 ### 1.0 -- rename + generalize to rows AND columns
 - [1.0 untested] Renamed O-ROWSPACE -> O-MODSPACE (alias OMODSPACE); new folder omodspace/.
@@ -449,16 +491,32 @@ Latest confirmed: 1.2 untested
   `[Yes/No]` and calls `_omsp-apply-one` on Yes (O-MODSPACE behavior unchanged). O-PVSPACE 1.1
   drives `_omsp-apply-one` directly to batch one param set across many arrays with one combined confirm.
 
-## SSA  (VVN nomenclature)
-Commands: SSA  ->  click one module, select the whole array
-File: ssa/ssa-1.0.lsp   (new folder)
-Latest confirmed: 1.0 PASSES headless load (ogeo + ssa load clean; C:SSA defined).
-GUI pick + grip selection untested.
-Naming: VVN grammar -- verb SS (select) + noun A (array). New noun A scopes selection to ONE
-array, distinct from the rostered SSM (select ALL modules drawing-wide). Lives in opal-tools
-(runs today) on the ogeo shared library; bare VVN name, no O- prefix / aliases.
+## SSA  (VVN nomenclature)  --  "All Arrays" (SELECT ARRAYS), drawing-wide
+Commands: SSA  ->  select every real module + report total + per-array breakdown
+File: ssa/ssa-2.0.lsp   (new folder)
+Latest confirmed: 2.0 PASSES the offline paren/string-balance check (net 0, never negative).
+Headless accoreconsole load could not be exercised this session (the runner hangs on (load)
+from an untrusted path / redirected stdout); GUI run + selection untested.
+Naming: VVN grammar -- verb SS (select) + noun A (arrays), drawing-wide. SSA is the "All Arrays"
+select tool; its single-array counterpart is QQA ("One Array"). Lives in opal-tools (runs today)
+on the ogeo shared library; bare VVN name, no O- prefix / aliases.
 
-### 1.0 -- single-click array selection
+### 2.0 -- REWRITE: unified drawing-wide SELECT ARRAYS (folds in SSM / "QQM")
+- [2.0 untested] No pick. Collects every REAL module via the shared `_ogeo-modules` (layer +
+  graceful fallback + footprint gate + viewport filter), grip-selects them all
+  (`sssetfirst`), then prints: total REAL modules, number of distinct arrays (flood-fill
+  `_ogeo-array-from` over the real set, visited-ename `member` test, no lambda), module footprint
+  (`_ogeo-module-dims`), and a PER-ARRAY breakdown line (modules + rows x cols via
+  `_ogeo-axis-groups`), largest array first (local insertion sort `_ssa-by-size`). This is the
+  drawing-wide "array info for all arrays" the user asked for; it subsumes the old SSM (select all
+  modules) and the "QQM" (query all modules) readout.
+- [2.0 untested] Reports ONLY real modules -- the raw PV-MODS element count is NEVER shown. ogeo
+  1.07 dropped the "[modules] N on layer ..." line from the shared collector, so no O-Suite tool
+  prints the raw layer total; SSA reports the post-footprint-gate count.
+- [2.0 design] No geometry/spacing math here -- every number comes from an ogeo helper. Replaces
+  the v1.x "click one module -> select its array" behavior (that single-array role is QQA's).
+
+### 1.x (superseded by 2.0) -- single-click array selection
 - [1.0 untested] Click one module (OSNAP off, click-near; seed = nearest module centre, same
   read-only interaction as O-MODSPACE Measure). The connected array floods via shared
   `_ogeo-array-from` and is delivered to the active pickfirst set with `(sssetfirst nil ss)` --
@@ -469,11 +527,20 @@ array, distinct from the rostered SSM (select ALL modules drawing-wide). Lives i
 - [1.0 untested] VERIFY collision: confirm SSA is not a native command / pgp alias in use (VVN
   collision rule). If it collides, UNDEFINE in loader (native unused) or rename (native in use).
 
-## ZZA  (VVN nomenclature)
+## ZZA  (VVN nomenclature)  -- ARCHIVED to dormant/zza/ (does not load)
 Commands: ZZA  ->  zoom window to all PV array boundaries
-File: zza/zza-1.1.lsp   (new folder)
-Latest confirmed: 1.1 PASSES headless load (ogeo 1.02 + zza load clean; C:ZZA defined).
-GUI zoom untested.
+File: dormant/zza/zza-1.3.lsp   (archived -- excluded from the oload scan; move back to a root
+folder to re-activate)
+STATUS: ARCHIVED. The zoom never worked correctly in the live GUI across two attempts and the
+remaining diagnosis needs live GUI iteration. Headless load is clean (C:ZZA defines), but:
+  - 1.2 (vla-ZoomWindow): only SHIFTED the view, never zoomed -- VLA zoom is unreliable in a
+    paper-space viewport / non-World UCS.
+  - 1.3 (command-line ZOOM Window, UCS-transformed points): zoom now fires, but on a layout it
+    zooms WAY out -- the command zooms the ACTIVE space, so model-space-magnitude bbox corners
+    blow the PAPER view out. A correct fix must force the zoom onto MODEL space and handle three
+    contexts (Model tab / inside a floating viewport / paper space active), which is only
+    verifiable live. Parked here until that live debugging happens.
+NOTE: already dropped from the O toolbox in olaunch 1.18; not in OHELP. No active references.
 Naming: VVN grammar -- verb ZZ (zoom, NEW verb) + noun A (array). Frames every PV module in one
 view. Lives in opal-tools (runs today) on the ogeo shared library; bare VVN name, no aliases.
 
@@ -491,20 +558,46 @@ view. Lives in opal-tools (runs today) on the ogeo shared library; bare VVN name
   bbox loop, so stray clutter on the module layer (mismatched footprints) no longer stretches the
   zoom window. The framed count now equals O-SET's module count. Readout says "N real modules".
 
-## SSM  (VVN nomenclature)
-Commands: SSM  ->  select every real PV module in the drawing
-File: ssm/ssm-1.0.lsp   (new folder)
-Latest confirmed: 1.0 PASSES headless load (ogeo 1.02 + ssm load clean; C:SSM defined).
-GUI select + pgp-collision behavior untested.
-Naming: VVN grammar -- verb SS (select) + noun M (module), drawing-wide (cf. SSA = one array).
+### 1.2 -- shared module-set entry
+- [1.2 untested] Calls the shared `_ogeo-modules` (ogeo 1.04) instead of the inline
+  `(_ogeo-real-modules (_ogeo-all-modules))`. Same behavior; the working module set is now defined
+  in one place shared with SSM + QQA.
+
+### 1.3 -- FIX the zoom (was only shifting the view)
+- [1.3 untested-GUI] `vla-ZoomWindow` is unreliable when the active context is a layout /
+  paper-space viewport (and with a non-World UCS): it recenters without fitting the window, so ZZA
+  appeared to "shift the viewport but not zoom". Replaced with a command-line `ZOOM Window`, and the
+  WCS bbox corners are transformed into the current UCS (`(trans p 0 1)`) because the ZOOM command
+  reads points in the UCS, not WCS. Now frames the arrays correctly from the Model tab and from
+  inside a floating layout viewport. Bbox math (per-module `vla-getboundingbox`) unchanged. CMDECHO
+  saved/restored (also in `*error*`).
+
+## SSM  (VVN nomenclature)  --  SUPERSEDED in the toolbox by SSA (All Arrays)
+Commands: SSM  ->  select every real PV module + report (count / arrays / footprint)
+File: ssm/ssm-1.1.lsp   (new folder)
+Latest confirmed: 1.0 worked live (selected 227 modules). 1.1 untested-live (select + query combine).
+NOTE: As of olaunch 1.22 / ohelp 1.07, SSM is no longer a toolbox button -- its "select all
+modules drawing-wide + count" role is now SSA ("All Arrays", ssa-2.0), which adds the per-array
+breakdown. SSM stays loadable on disk (O-LOAD still loads it; the user manages dormant), just
+off the menu. Its readout prints only the real-module count (no raw PV-MODS element count).
+Naming: VVN grammar -- verb SS (select) + noun M (module), drawing-wide (cf. QQA = one array).
 
 ### 1.0 -- select all modules
-- [1.0 untested] No pick. `_ogeo-all-modules` -> `_ogeo-real-modules` (modal-footprint gate, so
-  clutter on the module layer is excluded) -> `(sssetfirst nil ss)`. Grips active; nothing
-  modified. Selected count should equal O-SET's module count.
+- [1.0 works] No pick. Real-module set -> `(sssetfirst nil ss)`. Grips active; nothing
+  modified. Selected count equals O-SET's module count (254 -> 227 live).
 - [1.0 untested] COLLISION: acad.pgp aliases `SSM -> *SHEETSET`. A LISP `C:SSM` is expected to
   shadow the pgp alias (no acad.pgp edit, per VVN rule). VERIFY live: type SSM and confirm it
   selects, not opens Sheet Set Manager. If SHEETSET opens, escalate to a rename.
+
+### 1.1 -- select + query (folds in "QQM"); shared module-set entry
+- [1.1 untested] Now SELECTS and REPORTS in one command. After grip-selecting every real module
+  it prints a drawing-wide readout: MODULES (count), ARRAYS (distinct arrays via flood-fill
+  `_ogeo-array-from` over the real set, marking visited enames -- member test, no lambda), and
+  MODULE footprint (`_ogeo-module-dims`). This is the "query all modules" (QQM) behavior folded
+  into SSM per user request ("ssm+qqm").
+- [1.1 untested] Calls the shared `_ogeo-modules` (ogeo 1.04) instead of the inline
+  `(_ogeo-real-modules (_ogeo-all-modules))`; one shared working-set definition with QQA. Guard
+  now checks `_OGEO-MODULES` (needs ogeo 1.04+).
 
 ## SS  (VVN nomenclature)
 Commands: SS  ->  select all objects on the picked entity's layer
@@ -521,20 +614,43 @@ redundant and not built. Generic (any layer / object type); no ogeo dependency.
 - [1.0 untested] VERIFY collision: confirm bare SS is not a native command / pgp alias in use
   (acad.pgp checked: no SS alias).
 
-## QQA  (VVN nomenclature)
-Commands: QQA  ->  click a module, report its array (read-only)
-File: qqa/qqa-1.0.lsp   (new folder)
-Latest confirmed: 1.0 PASSES headless load (ogeo + qqa load clean; C:QQA defined).
-GUI pick + readout untested.
-Naming: VVN grammar -- verb QQ (query) + noun A (array).
+## QQA  (VVN nomenclature)  --  "One Array", click + select + report
+Commands: QQA  ->  click a module, report (incl. row-by-row qty) AND select its array
+File: qqa/qqa-1.4.lsp   (new folder)
+Latest confirmed: 1.0 worked live (reported the array). 1.4 PASSES the offline paren/string-
+balance check; the row-by-row block + the _ogeo-array-at migration untested-live.
+Naming: VVN grammar -- verb QQ (query) + noun A (array). The "One Array" select tool; its
+drawing-wide counterpart is SSA ("All Arrays"). Selects + reports one clicked array.
+1.3 = click->array via shared _ogeo-array-at (dropped local _qqa-nearest).
+
+### 1.4 -- row-by-row module-quantity breakdown ("One Array")
+- [1.4 untested] After the ARRAY / GRID / MODULE summary, QQA now prints a ROW QTY block: one
+  line per row (Row n -> qty modules), from the same short-edge row groups (`_ogeo-axis-groups`)
+  used for the GRID count. Surfaces partial / short rows a single "R rows x C cols" can't show.
+  Local pad helper `_qqa-pad`; no new geometry. Pairs with SSA (All Arrays, per-array totals) --
+  QQA drills into ONE array. Counts REAL modules only (raw PV-MODS count never shown; ogeo 1.07).
 
 ### 1.0 -- query array
-- [1.0 untested] Click-near (OSNAP off; seed = nearest module centre) -> `_ogeo-array-from`.
+- [1.0 works] Click-near (OSNAP off; seed = nearest module centre) -> `_ogeo-array-from`.
   Reports module count, rows x cols (`_ogeo-axis-groups`), module footprint
   (`_ogeo-module-dims`), row gaps (`_ogeo-row-gaps`), column gap (`_ogeo-col-gap`), and matched
   config pattern (`_ogeo-detect-pattern`). Read-only -- nothing drawn or modified.
-- [1.0 untested] Every number comes from an existing ogeo helper; no geometry/spacing math added.
+- [1.0 works] Every number comes from an existing ogeo helper; no geometry/spacing math added.
   Local helpers `_qqa-nearest`, `_qqa-nstr` only. Should agree with O-MODSPACE Measure.
+
+### 1.1 -- count real modules only
+- [1.1 untested] Filters through `_ogeo-real-modules` before the flood-fill (same modal-footprint
+  gate as SSM / ZZA), so the seed, the flooded array, and the ARRAY count are all real modules --
+  footprint clutter no longer inflates the count.
+
+### 1.2 -- select + query (folds in SSA); shared module-set entry
+- [1.2 untested] After printing the array report, QQA now grip-selects the whole array
+  (`ssadd` over the flooded members + `sssetfirst`) and prints SELECTED count -- so one click
+  both reports AND selects. This folds the old standalone SSA into QQA per user request
+  ("combine ssa and qqa"). SSA stays on disk but is dropped from the O toolbox.
+- [1.2 untested] Calls the shared `_ogeo-modules` (ogeo 1.04) instead of the inline
+  `(_ogeo-real-modules (_ogeo-all-modules))`; one shared working-set definition with SSM. Guard
+  now checks `_OGEO-MODULES` (needs ogeo 1.04+).
 
 ## O-PVSPACE
 Commands: O-PVSPACE, OPVSPACE
@@ -1139,11 +1255,38 @@ otherwise it can be retired.
 
 ## O-LAUNCH
 Commands: O, OPAL, O-MENU
-File: olaunch/olaunch-1.14.lsp  (+ olaunch.dcl: 3 main variants opal_launcher / opal_launcher_dev /
+File: olaunch/olaunch-1.22.lsp  (+ olaunch.dcl: 3 main variants opal_launcher / opal_launcher_dev /
       opal_launcher_prodtest, plus the opal_advanced submenu)
-Latest confirmed: 1.08 works (dialog opens live, DEV/BUNDLE switch verified); 1.09-1.14 untested-live
+Latest confirmed: 1.08 works (dialog opens live, DEV/BUNDLE switch verified); 1.09-1.22 untested-live
 
 ### Current Features
+- [1.22 untested] Select group is "One Array" (QQA) + "All Arrays" (SSA), mirroring Spacing's
+  One/All split. Replaces "One Array" (QQA) + "All Modules" (SSM) -- SSM's all-modules role moves
+  to SSA (All Arrays, drawing-wide select + per-array breakdown). DCL keys QQA + SSA in all three
+  main variants (DCL edit needs a one-time AutoCAD restart to reparse).
+- [DCL] Consistent toolbox labels/categories. "Draw" group renamed to "Spacing"; each scope group
+  now reads "One Array" (single, clicked) then "All ..." (drawing-wide), in the same order:
+  Spacing = "One Array" (O-MODSPACE) / "All Arrays" (O-PVSPACE); Select = "One Array" (QQA) /
+  "All Arrays" (SSA) (was "All Modules" (SSM) before olaunch 1.22). Replaces the mismatched
+  "Module Spacing"/"PV Spacing" + "All Modules"/"Array".
+  DCL needs a one-time AutoCAD restart to reparse (the Select buttons changed in 1.22).
+- [1.21 untested] Removed the "Reload Tools" button; O now reloads all tools QUIETLY at open in DEV
+  (replaces the button) so the toolbox always reflects source edits. Quiet suppresses the load
+  banner AND O-SET auto-calibrate. Dropped the OLOAD action_tile, the res-20 handler, and the DCL
+  button (opal_launcher_dev Setup). BUNDLE mode does not auto-reload.
+- [1.20] REVERTED the 1.19 DCL cache-buster. Loading the dialog from a temp COPY of olaunch.dcl
+  broke O in the full GUI -- it dumped the DCL text to the command line and errored "bad argument
+  type: streamp T" (passed headless, failed live). Back to loading olaunch.dcl directly by path
+  (proven 1.18 behavior). CONSEQUENCE: AutoCAD caches a parsed DCL per session, so after a menu
+  edit a one-time AutoCAD RESTART is needed to see it (OLOAD reloads LISP, not the cached DCL).
+  Do NOT reintroduce a temp-copy cache-buster without testing in the full GUI (not headless-repro).
+- [1.19 REVERTED] DCL cache-buster via temp copy (TEMPPREFIX+MILLISECS). Caused the live streamp-T
+  regression above; superseded by 1.20.
+- [1.18 untested] "Select" group trimmed to the two COMBINED tools: "All Modules" (SSM, now select +
+  query: count/arrays/size) and "Array" (QQA, now select + query the clicked array). Dropped the
+  standalone SSA and ZZA buttons (SSA folded into QQA; Zoom Arrays removed). DCL "Select"
+  boxed_column is now 2 buttons in all three main variants. (Superseded the 1.17 four-button cut
+  SSM/SSA/QQA/ZZA.)
 - [1.14 untested] "Save Layers/Filters" moved out of the main DEV toolbox into a DEV-only
   "Advanced >" submenu (opal_advanced, key ADV -> done_dialog 40). Its "< Back" returns to the main
   toolbox (done_dialog 2 -> reopen), same as the old Layer Tools back. The submenu's one button
@@ -1216,11 +1359,14 @@ Latest confirmed: 1.08 works (dialog opens live, DEV/BUNDLE switch verified); 1.
 
 ## OHELP
 Commands: OHELP, O-HELP
-File: ohelp/ohelp-1.01.lsp  (1.01: list trimmed to match toolbox; O-DC/LK-BYLAYER archived, LK-CLEANUP no longer advertised)
+File: ohelp/ohelp-1.07.lsp  (1.01: list trimmed to match toolbox; O-DC/LK-BYLAYER archived, LK-CLEANUP no longer advertised)
 Latest confirmed: 1.0 untested
 
 ### Current Features
-- [1.0 untested] Prints a grouped, plain-language list (Draw / Layers / Setup) of the
+- [1.07 untested] New "Select" group: QQA (One Array -- click one array, select + row-by-row qty)
+  and SSA (All Arrays / SELECT ARRAYS -- select every real module + per-array breakdown). Groups
+  list is now Draw / Select / Layers / Setup. Replaces the old SSM advertisement.
+- [1.0 untested] Prints a grouped, plain-language list (Draw / Select / Layers / Setup) of the
   commands that are actually loaded (checked via atoms-family + member).
 - [1.0 untested] Plain-text fallback for O-LAUNCH; works in headless/script sessions.
 
@@ -1229,3 +1375,36 @@ Latest confirmed: 1.0 untested
 
 ### Globals
 - *ohelp-cmds*
+
+---
+
+## O-ZONE
+Commands: O-ZONE, OZONE
+File: ozone/ozone-1.0.lsp
+Latest confirmed: 1.0 untested
+
+### Current Features
+- [1.0 untested] O-ZONE [Set/Clear/Show]. SET rough-drags a rectangle (getpoint+getcorner),
+  crossing-selects the modules grabbed (ssget "_C" + module layer filter), and stores
+  *ozone-bounds* = the centre-bbox of those modules PADDED by half a module long-side, then
+  SCALED by *ozone-margin* (default 2.0) about its centre. So a loose drag around one array
+  yields a forgiving zone that won't reach a distant second array. Reports the in-zone count and
+  grip-highlights the modules (sssetfirst).
+- [1.0 untested] The zone is the MANUAL fallback for the default "module = visible on E-1.0"
+  sheet rule (oconfig *ocfg-module-sheet*). While set, it OVERRIDES that rule: every tool routed
+  through ogeo (_ogeo-all-modules -> O-MODSIZE, SSA/SSM, click->array) and O-SET see only modules
+  inside the rectangle. CLEAR releases it (restores the E-1.0 default); SHOW re-reports/highlights.
+- [1.0 untested] Self-contained: *ozone-bounds* / *ozone-margin* live here; the filter helpers
+  (_ogeo-pt-in-zone / _ogeo-zone-keep) live in ogeo (always loaded), so ogeo never depends on
+  ozone and the gate is inert when no zone is set.
+
+### Entities created
+- None (stores a bounds global; grip-highlights existing modules).
+
+### Globals
+- *ozone-bounds*  (xmin ymin xmax ymax) WCS, or nil
+- *ozone-margin*  expansion factor about the grabbed-system centre (default 2.0)
+
+### Notes / not yet done
+- Interactive drag + grip-highlight need the GUI; the zone-keep engine is headless-testable by
+  setting *ozone-bounds* directly. Live AutoCAD run UNTESTED.

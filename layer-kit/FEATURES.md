@@ -463,3 +463,38 @@ missing layers (verified headless). CSV: config/PV_layer_filters.csv (name,layer
   (102 ACAD_REACTORS) and the (290 . 1) flag on AutoCAD's own filters turned out NOT to be needed
   for the filter to display.
 - Open item: an in-session refresh (so a reload isn't required) -- not yet found; reload works.
+
+---
+
+## LK-ZEROBLOCK (push nested block geometry to layer 0)
+Commands: LK-ZEROBLOCK, LK-ZB
+File: lkzeroblock/lkzeroblock-1.0.lsp
+Latest confirmed: 1.0 works (headless) -- 3-level nested block (OUTER>MIDDLE>INNER) all 5 nested
+entities incl. the nested INSERTs moved to "0", top insert kept its layer, each def walked once
+(moved=5, defs=3). Not yet verified in live AutoCAD.
+
+### Current Features
+- [1.0 works (headless)] Pick ONE block reference (entsel) -> recursively moves every nested entity,
+  at every level of nested blocks, onto layer "0". Resolves the picked INSERT's block name (group 2,
+  so dynamic/anonymous *U... blocks resolve to the right def automatically) and walks the block
+  DEFINITION via (entnext (tblobjname "BLOCK" name)) ... to ENDBLK (mirrors LK-BYLAYER's Part 2);
+  for each nested INSERT it recurses depth-first (lk:zb-walk). Headless smoke confirmed the full
+  3-level descent and that nested INSERT entities are themselves moved to 0.
+- [1.0 works (headless)] Edits SHARED block definitions: all insertions of each block name update
+  (inherent to block storage; this is the intended behavior). The clicked reference itself is left
+  on its own layer (contents only) -- confirmed the top INSERT stayed on its insertion layer.
+- [1.0 works (headless)] Visited-name list (*lk-zb-visited*) walks each block def once -- guards
+  against self-reference / infinite recursion and avoids redundant re-walks. Reports moved-entity
+  count and block-definition count (confirmed moved=5, defs=3 on the 3-level fixture).
+- [1.0 untested] Skips xref defs (flag-70 bit 4, lk:zb-xref-p) both as the picked block and when
+  recursing -- xref contents can't be edited. Non-block pick and xref pick print a clear message.
+- [1.0 untested] Temporarily clears lock(4)+freeze(1) on all layers (lk:zb-prep) so entmod isn't
+  blocked on nested entities sitting on locked/frozen layers; restores original bits afterward
+  (lk:zb-restore), also restored by the *error* handler on abort. (Same technique as LK-BYLAYER.)
+- [1.0 untested] entupd on the picked reference after the walk so the on-screen block regenerates.
+
+### Notes / not yet done
+- Pure DXF + entmod (no COM) -> should be accoreconsole-safe for headless smoke. The "VLA-not-CHPROP"
+  gotcha is about viewports, which don't occur inside block defs, so entmod is the right tool here.
+- Not yet verified in live AutoCAD 2027 (confirm the placed block visibly recolors to its insertion
+  layer and that other insertions of the same block update too).

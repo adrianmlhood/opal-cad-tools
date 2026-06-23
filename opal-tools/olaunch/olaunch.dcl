@@ -24,9 +24,14 @@ opal_launcher : dialog {
   spacer;
   : row {
     : boxed_column {
-      label = "Draw";
-      : button { key = "OMODSPACE"; label = "Module Spacing"; }
-      : button { key = "OPVSPACE"; label = "PV Spacing"; }
+      label = "Spacing";
+      : button { key = "OMODSPACE"; label = "One Array"; }
+      : button { key = "OPVSPACE"; label = "All Arrays"; }
+    }
+    : boxed_column {
+      label = "Select";
+      : button { key = "QQA"; label = "One Array"; }
+      : button { key = "SSA"; label = "All Arrays"; }
     }
     : boxed_column {
       label = "Layers";
@@ -60,9 +65,14 @@ opal_launcher_dev : dialog {
   spacer;
   : row {
     : boxed_column {
-      label = "Draw";
-      : button { key = "OMODSPACE"; label = "Module Spacing"; }
-      : button { key = "OPVSPACE"; label = "PV Spacing"; }
+      label = "Spacing";
+      : button { key = "OMODSPACE"; label = "One Array"; }
+      : button { key = "OPVSPACE"; label = "All Arrays"; }
+    }
+    : boxed_column {
+      label = "Select";
+      : button { key = "QQA"; label = "One Array"; }
+      : button { key = "SSA"; label = "All Arrays"; }
     }
     : boxed_column {
       label = "Layers";
@@ -71,7 +81,6 @@ opal_launcher_dev : dialog {
     }
     : boxed_column {
       label = "Setup";
-      : button { key = "OLOAD";  label = "Reload Tools"; }
       : button { key = "MODESW"; label = "Switch to Bundle"; }
       : button { key = "OHELP";  label = "Help"; }
     }
@@ -99,9 +108,14 @@ opal_launcher_prodtest : dialog {
   spacer;
   : row {
     : boxed_column {
-      label = "Draw";
-      : button { key = "OMODSPACE"; label = "Module Spacing"; }
-      : button { key = "OPVSPACE"; label = "PV Spacing"; }
+      label = "Spacing";
+      : button { key = "OMODSPACE"; label = "One Array"; }
+      : button { key = "OPVSPACE"; label = "All Arrays"; }
+    }
+    : boxed_column {
+      label = "Select";
+      : button { key = "QQA"; label = "One Array"; }
+      : button { key = "SSA"; label = "All Arrays"; }
     }
     : boxed_column {
       label = "Layers";

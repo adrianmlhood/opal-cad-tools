@@ -1,0 +1,211 @@
+;; olaunch-1.22.lsp -- Opal CAD Tools launcher dialog (the "toolbox")
+;; Commands: O (aliases: OPAL, O-MENU)
+;; Opal mark + grouped buttons.
+;; v1.22 -- "Select" group is now "One Array" (QQA) + "All Arrays" (SSA), mirroring the
+;;          Spacing group's One/All split. QQA = click one array -> select it + row-by-row
+;;          module-qty readout; SSA = SELECT ARRAYS -> select every real module + per-array
+;;          breakdown (drawing-wide). Replaces the old "One Array" (QQA) + "All Modules" (SSM):
+;;          SSM's all-modules role is now SSA's all-arrays view. DCL keys QQA + SSA in all
+;;          three main variants (the DCL edit needs a one-time AutoCAD restart to reparse --
+;;          see the v1.20 note below).
+;; v1.21 -- removed the "Reload Tools" button; O now reloads all tools QUIETLY at open in
+;;          DEV (so the toolbox always reflects source edits without a click). Dropped the
+;;          OLOAD action_tile + the res-20 handler + the DCL button (opal_launcher_dev Setup).
+;;          BONUS: this also clears the DCL-cache pain -- after a menu edit, just reopen O in
+;;          DEV (the reload picks up new tool logic; the DCL still needs a restart to reparse,
+;;          but the auto-reload means you rarely think about it).
+;; v1.20 -- REVERT the v1.19 DCL cache-buster. Loading the dialog from a temp COPY of
+;;          olaunch.dcl broke O in the full GUI: it dumped the DCL text to the command
+;;          line and errored "bad argument type: streamp T" (worked headless, not live).
+;;          Back to loading olaunch.dcl directly by path (the proven v1.18 behavior).
+;;          CONSEQUENCE: AutoCAD caches a parsed DCL per session, so after editing the menu
+;;          a one-time AutoCAD RESTART is needed for it to show (OLOAD reloads LISP, not the
+;;          cached DCL). Do NOT reintroduce a temp-copy cache-buster without testing in the
+;;          full GUI -- it is not headless-reproducible.
+;; v1.19 -- (reverted) DCL cache-buster via temp copy; caused the live streamp-T regression above.
+;; v1.18 -- "Select" group trimmed to the two combined tools: "All Modules" (SSM, now
+;;          select + query: count/arrays/size) and "Array" (QQA, now select + query the
+;;          clicked array). Dropped the standalone SSA and ZZA buttons (SSA folded into
+;;          QQA; Zoom Arrays removed).
+;; v1.17 -- new "Select" group in the toolbox: query/select array + modules
+;;          (SSM=all modules, SSA=array from a click, QQA=query array report,
+;;          ZZA=zoom to all arrays). Wired via *olaunch-main*; greys out if a
+;;          command isn't loaded. Added to all three main variants.
+;; v1.16 -- add "PV Spacing" button (O-PVSPACE, batch every array) beside "Module Spacing".
+;; v1.15 -- toolbox "Draw" button points at O-MODSPACE (was O-ROWSPACE); DCL button
+;;          key OMODSPACE / label "Module Spacing". Part of the O-ROWSPACE -> O-MODSPACE
+;;          rename (rows + columns).
+;; v1.14 -- "Save Layers/Filters" moved out of the main DEV toolbox into a dev-only
+;;          "Advanced >" submenu (opal_advanced) whose "< Back" returns to the main
+;;          toolbox (done_dialog 2 -> reopen), same as the old Layer Tools back.
+;;          New prod-test-only "Back to DEV" button (key MODEDEV -> omode:to-dev) via
+;;          a third main variant opal_launcher_prodtest -- shown only in BUNDLE
+;;          (prod-test), never in a real teammate BUNDLE install. Main variant is now
+;;          a 3-way pick: dev / prodtest / bundle.
+;; v1.13 -- layer actions in the main toolbox; gate is DEV vs BUNDLE (not OADMIN).
+;; v1.11 -- "Switch to Bundle" (omode:to-bundle), reopens to teammate view.
+;; v1.10 -- mode folded into the version line. v1.09 -- variant-by-mode.
+;; v1.08 -- dropped Calibrate; Reload reopens. v1.07 -- "< Back" reliable.
+;; ============================================================
+
+(vl-load-com)
+
+(setq *olaunch-ver* "1.1.2")   ;; keep in step with opal-cad-installer/VERSION
+
+;; generic buttons: pick the command, close the toolbox, run it
+(setq *olaunch-main*
+  (list
+    (cons "OMODSPACE" "C:O-MODSPACE")
+    (cons "OPVSPACE"  "C:O-PVSPACE")
+    ;; Select: One Array (QQA) reports + selects one clicked array (row-by-row qty);
+    ;;         All Arrays (SSA) selects every real module + per-array breakdown drawing-wide.
+    (cons "QQA"       "C:QQA")
+    (cons "SSA"       "C:SSA")
+    (cons "OHELP"     "C:OHELP")))
+
+;; DEV-only "Save Layers/Filters": push this drawing's layer standard AND filters
+;; up to the master CSVs (drawing -> master). Runs both saves in sequence.
+(defun olaunch:save-master ( / )
+  (if (_olaunch-have "lk:std-save")    (lk:std-save))
+  (if (_olaunch-have "lk:filter-save") (lk:filter-save))
+  (princ))
+
+;; Current load mode, detected from the suite root (no dependency on the omode
+;; tool, which is excluded from packaged releases).
+(defun _olaunch-mode ( / r)
+  (setq r (if (and (boundp (quote *o-suite-root*)) *o-suite-root*) *o-suite-root* ""))
+  (cond
+    ((vl-string-search "OpalTools-prodtest" r) "BUNDLE (prod-test)")
+    ((vl-string-search "ApplicationPlugins" r) "BUNDLE")
+    (T "DEV")))
+
+(defun _olaunch-have (sym / n)
+  (setq n (strcase sym))
+  (and (member n (atoms-family 1 (list n))) T))
+
+(defun _olaunch-call (sym)
+  (if (_olaunch-have sym)
+    (eval (list (read sym)))
+    (prompt (strcat "\n" sym " is not available."))))
+
+(defun _olaunch-dcl-path ( / root p)
+  (setq root (if (and (boundp (quote *o-suite-root*)) *o-suite-root*)
+               *o-suite-root*
+               "C:\\Users\\adria\\CAD\\Automations\\opal-tools\\"))
+  (setq p (strcat root "olaunch\\olaunch.dcl"))
+  (if (findfile p) p (findfile "olaunch.dcl")))
+
+(defun _olaunch-gl (x1 y1 x2 y2)
+  (vector_image x1 y1 x2 y2 40))
+
+(defun _olaunch-draw-mark ( / w h cx cy r rd yy hw bb sz)
+  (setq w  (dimx_tile "logo") h (dimy_tile "logo")
+        cx (/ w 2) cy (/ h 2)
+        sz (min w h)
+        r  (fix (* sz 0.373))
+        rd (fix (* sz 0.194))
+        bb (max 2 (fix (* rd 0.36))))
+  (start_image "logo")
+  (fill_image 0 0 w h 250)
+  (setq ri 0)
+  (while (< ri 8)
+    (_olaunch-gl cx          (- cy r ri)  (+ cx r ri)  cy         )
+    (_olaunch-gl (+ cx r ri) cy           cx           (+ cy r ri))
+    (_olaunch-gl cx          (+ cy r ri)  (- cx r ri)  cy         )
+    (_olaunch-gl (- cx r ri) cy           cx           (- cy r ri))
+    (setq ri (1+ ri)))
+  (setq yy (- rd))
+  (while (<= yy rd)
+    (setq hw (fix (sqrt (max 0 (- (* rd rd) (* yy yy))))))
+    (if (> hw 0) (fill_image (- cx hw) (+ cy yy) (* 2 hw) 1 255))
+    (setq yy (1+ yy)))
+  (fill_image (- cx rd) (- (- cy (fix (* rd 0.33))) (/ bb 2)) (* 2 rd) bb 250)
+  (fill_image (- cx rd) (- (+ cy (fix (* rd 0.33))) (/ bb 2)) (* 2 rd) bb 250)
+  (end_image))
+
+(defun _olaunch-wire (pairs / p)
+  (foreach p pairs
+    (if (_olaunch-have (cdr p))
+      (action_tile (car p)
+        (strcat "(setq *olaunch-go* \"" (cdr p) "\")(done_dialog 1)"))
+      (mode_tile (car p) 1))))
+
+(defun C:O ( / dcl id res r2 pick again md devp ptp dlg old-q)
+  ;; In DEV, reload all tools QUIETLY at open so the toolbox always reflects source
+  ;; edits (replaces the old "Reload Tools" button). Quiet suppresses the load banner
+  ;; AND O-LOAD's O-SET auto-calibrate. Skipped in BUNDLE (teammates don't reload).
+  (if (and (= (_olaunch-mode) "DEV") (car (atoms-family 1 (list "C:O-LOAD"))))
+    (progn
+      (setq old-q (if (boundp (quote *oload-quiet*)) *oload-quiet* nil))
+      (setq *oload-quiet* T)
+      (C:O-LOAD)
+      (setq *oload-quiet* old-q)))
+  (setq dcl (_olaunch-dcl-path))
+  (if (not dcl)
+    (progn
+      (prompt "\nLauncher dialog file not found. Type OHELP for the command list.")
+      (princ))
+    (progn
+      (setq id (load_dialog dcl))
+      (if (< id 0)
+        (progn
+          (prompt "\nCould not open the launcher. Type OHELP for the command list.")
+          (princ))
+        (progn
+          (setq pick nil again T)
+          (while again
+            (setq again nil)
+            ;; recompute each pass so a mode switch + reopen shows the new variant
+            (setq md   (_olaunch-mode)
+                  devp (= md "DEV")
+                  ptp  (= md "BUNDLE (prod-test)")
+                  dlg  (cond (devp "opal_launcher_dev")
+                             (ptp  "opal_launcher_prodtest")
+                             (T    "opal_launcher")))
+            (if (new_dialog dlg id)
+              (progn
+                (setq *olaunch-go* nil)
+                (set_tile "ver" (strcat "v" *olaunch-ver* "  " (chr 183) "  " md))
+                (_olaunch-draw-mark)
+                (_olaunch-wire *olaunch-main*)
+                (_olaunch-wire (list (cons "LKAPPLY" "C:LK-APPLY")))   ; Standardize, all variants
+                (if devp (action_tile "ADV"     "(done_dialog 40)"))  ; Advanced > (dev)
+                (if devp (action_tile "MODESW"  "(done_dialog 30)"))
+                (if ptp  (action_tile "MODEDEV" "(done_dialog 31)"))  ; Back to DEV (prod-test)
+                (setq res (start_dialog))
+                (cond
+                  ((= res 1) (setq pick *olaunch-go*))
+                  ;; (Reload Tools button removed in 1.21 -- O now reloads at open in DEV.)
+                  ;; Switch to Bundle: flip to prod-test, reopen (teammate view)
+                  ((= res 30)
+                   (if (_olaunch-have "omode:to-bundle")
+                     (omode:to-bundle)
+                     (prompt "\nOMODE tool not loaded -- cannot switch mode."))
+                   (setq again T))
+                  ;; Back to DEV: flip prod-test back to the source tree, reopen
+                  ((= res 31)
+                   (if (_olaunch-have "omode:to-dev")
+                     (omode:to-dev)
+                     (prompt "\nOMODE tool not loaded -- cannot switch mode."))
+                   (setq again T))
+                  ;; Advanced submenu (dev): Save Layers/Filters; < Back -> main
+                  ((= res 40)
+                   (if (new_dialog "opal_advanced" id)
+                     (progn
+                       (setq *olaunch-go* nil)
+                       (_olaunch-wire (list (cons "LKSAVE" "olaunch:save-master")))
+                       (action_tile "back" "(done_dialog 2)")
+                       (setq r2 (start_dialog))
+                       ;; r2=1 -> save chosen (exit + run); else (2=Back,0=ESC) -> main
+                       (if (= r2 1)
+                         (setq pick *olaunch-go*)
+                         (setq again T)))))))))
+          (unload_dialog id)
+          (if pick (_olaunch-call pick))
+          (princ))))))
+
+(defun C:OPAL   () (C:O))
+(defun C:O-MENU () (C:O))
+
+(prompt "\nO-LAUNCH v1.22 loaded. Type O to open the Opal toolbox.")
+(princ)

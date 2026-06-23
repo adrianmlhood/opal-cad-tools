@@ -212,5 +212,5 @@
 
 (defun C:OLOAD () (C:O-LOAD))
 
-(prompt "\nO-LOAD v1.09 (by Adrian Hood, 2026) loaded. Type O-LOAD or OLOAD to load all O-Suite tools.")
+(prompt "\nO-LOAD v1.10 (by Adrian Hood, 2026) loaded. Type O-LOAD or OLOAD to load all O-Suite tools.")
 (princ)
