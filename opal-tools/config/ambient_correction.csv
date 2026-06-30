@@ -1,0 +1,21 @@
+# NEC 310.15(B)(1) ambient temperature correction factors, 30C ambient base.
+# amb_high_c = upper bound of the ambient band (Celsius); pick the first row whose
+# amb_high_c >= the design ambient. factor75/factor90 = multiplier on the 75C/90C
+# table ampacity. 75C column is undefined (0 = not permitted) above ~70C ambient.
+amb_high_c,factor75,factor90
+10,1.20,1.15
+15,1.15,1.12
+20,1.11,1.08
+25,1.05,1.04
+30,1.00,1.00
+35,0.94,0.96
+40,0.88,0.91
+45,0.82,0.87
+50,0.75,0.82
+55,0.67,0.76
+60,0.58,0.71
+65,0.47,0.65
+70,0.33,0.58
+75,0,0.50
+80,0,0.41
+85,0,0.29

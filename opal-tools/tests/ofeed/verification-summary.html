@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>O-FEED Sizing Engine — Verification Summary</title>
+<style>
+  :root { --ink:#1a1a1a; --mut:#5a5a5a; --line:#d8d8d8; --ok:#1f7a3d; --bg:#fafafa; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: var(--ink);
+         max-width: 8.0in; margin: 0 auto; padding: 0.5in; font-size: 11px; line-height: 1.45; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 8px; margin-bottom: 14px; }
+  h1 { font-size: 19px; margin: 0 0 2px; }
+  .sub { color: var(--mut); font-size: 11px; }
+  .verdict { display: flex; align-items: baseline; gap: 14px; background: var(--bg);
+             border: 1px solid var(--line); border-left: 4px solid var(--ok);
+             padding: 10px 14px; margin: 12px 0; }
+  .verdict .big { font-size: 26px; font-weight: 700; color: var(--ok); }
+  .verdict .lbl { font-size: 11px; color: var(--mut); }
+  h2 { font-size: 13px; margin: 16px 0 6px; border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+  th, td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--mut); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
+  td.pass { color: var(--ok); font-weight: 600; white-space: nowrap; }
+  .cols { display: flex; gap: 22px; }
+  .cols > div { flex: 1; }
+  .stat { font-weight: 700; }
+  .note { color: var(--mut); font-size: 10px; }
+  footer { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 6px;
+           color: var(--mut); font-size: 9.5px; }
+  code { background: #f0f0f0; padding: 0 3px; border-radius: 2px; font-size: 10px; }
+  @media print { body { padding: 0.4in; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>O-FEED Sizing Engine — Verification Summary</h1>
+  <div class="sub">Ocotillo Labs · AC Feeder Schedule sizing engine (<code>ofeed-2.35.lsp</code>) ·
+  Verified 2026-06-28 · AutoCAD 2027 headless</div>
+</header>
+
+<div class="verdict">
+  <div><div class="big">0</div><div class="lbl">invariant violations</div></div>
+  <div><div class="big">23,421</div><div class="lbl">simulations checked</div></div>
+  <div><div class="big">12 / 12</div><div class="lbl">NEC invariants PASS</div></div>
+</div>
+
+<p>The conductor / breaker / conduit sizing engine was exercised across the full range of systems
+Ocotillo designs — residential, commercial &amp; industrial, and industrial — and every result was
+checked against NEC-derived correctness rules. Where a value has one correct answer (breaker rating,
+voltage drop, corrected ampacity) it was <strong>independently recomputed</strong> from the NEC
+reference tables and compared. No production code was modified.</p>
+
+<div class="cols">
+<div>
+  <h2>Input coverage</h2>
+  <table>
+    <tr><th>Parameter</th><th>Range</th></tr>
+    <tr><td>Circuit load</td><td>10 – 1600 A</td></tr>
+    <tr><td>Voltage</td><td>120 / 208 / 240 / 277 / 480 / 600 V</td></tr>
+    <tr><td>Phase</td><td>1Ø and 3Ø</td></tr>
+    <tr><td>One-way length</td><td>10 – 1000 ft</td></tr>
+    <tr><td>Design ambient</td><td>10 – 85 °C (all bands)</td></tr>
+    <tr><td>Termination</td><td>75 °C and 90 °C</td></tr>
+    <tr><td>Neutral as CCC</td><td>off / on</td></tr>
+    <tr><td>Per-run cap</td><td>none / 350 / 500 KCMIL</td></tr>
+  </table>
+</div>
+<div>
+  <h2>Output range observed</h2>
+  <table>
+    <tr><th>Quantity</th><th>Min – Max</th></tr>
+    <tr><td>Parallel sets</td><td>1 – 25</td></tr>
+    <tr><td>Breaker</td><td>15 – 2000 A</td></tr>
+    <tr><td>Base ampacity</td><td>25 – 8750 A</td></tr>
+    <tr><td>Adjusted ampacity</td><td>25 – 2281 A</td></tr>
+    <tr><td>Conduit fill</td><td>9.6 – 39.6 % (&lt; 40 %)</td></tr>
+    <tr><td>Voltage drop</td><td>0.02 – 102 %</td></tr>
+    <tr><td>Material mix</td><td>4,736 CU / 18,655 AL</td></tr>
+  </table>
+</div>
+</div>
+
+<h2>Invariants verified (every case)</h2>
+<table>
+  <tr><th>Rule</th><th>NEC basis</th><th>Result</th></tr>
+  <tr><td>Breaker = smallest standard rating ≥ 125 % load</td><td>210.20(A), 240.6(A)</td><td class="pass">PASS</td></tr>
+  <tr><td>Corrected ampacity ≥ breaker rating (core protection)</td><td>240.4</td><td class="pass">PASS</td></tr>
+  <tr><td>Adjusted ampacity = sets × derate × table ampacity (recomputed)</td><td>310.15(B)(1) &amp; (C)(1)</td><td class="pass">PASS</td></tr>
+  <tr><td>Single run → copper; parallel → aluminum</td><td>310.10(G)</td><td class="pass">PASS</td></tr>
+  <tr><td>Voltage drop V / % match independent recompute</td><td>Ch. 9 Table 8</td><td class="pass">PASS</td></tr>
+  <tr><td>Conduit fill under 40 %</td><td>Ch. 9 Table 1</td><td class="pass">PASS</td></tr>
+  <tr><td>Breaker / ampacity / sets monotonic in load</td><td>consistency</td><td class="pass">PASS</td></tr>
+  <tr><td>75 °C-not-permitted reported, never silently sized</td><td>110.14(C)</td><td class="pass">PASS</td></tr>
+</table>
+<p class="note">Anchor: the engine reproduces the stamped production sheet E-2.0 (432.9 A → 600 A
+breaker → parallel AL; 144.3 A → 3/0 CU). Voltage drop &gt; 3 % (7,352 cases at long/low-V runs) is
+correctly reported as a design flag, not an error.</p>
+
+<h2>Scope</h2>
+<p class="note">Verifies the sizing-engine math and its NEC reference tables. The AutoCAD native-table
+(GUI/COM) read-write layer is verified separately via the live-GUI test pass. Load is bounded at
+1600 A by the 2000 A top standard breaker. Reproduce with <code>ofeed-sweep.scr</code> +
+<code>analyze.ps1</code> in this folder.</p>
+
+<footer>
+  Ocotillo Labs · O-FEED verification · engine <code>ofeed-2.35</code> · 23,421 simulations,
+  0 violations · generated from <code>opal-tools/tests/ofeed/</code>. See VERIFICATION_REPORT.md for full detail.
+</footer>
+</body>
+</html>

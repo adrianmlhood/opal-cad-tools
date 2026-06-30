@@ -1,0 +1,6 @@
+#source: manufacturer datasheet, continuous AC output current (A), phase, nominal line voltage (V)
+#note: replace placeholder rows with real models; output_a drives feeder load sizing
+#note: 1 inverter -> inverter-to-panel feeder (no neutral); N aggregated -> aggregation feeder (with neutral)
+#cols: model,output_a,phase,volts,notes
+model,output_a,phase,volts,notes
+INV-MODEL-A,48.1,3,480,placeholder reproducing existing sheet (1 unit=AC-3/4, 2 aggregated=AC-1/2)

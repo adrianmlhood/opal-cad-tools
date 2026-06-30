@@ -235,8 +235,8 @@ confirm) untested in GUI.
 ---
 
 ## Config + ogeo (shared, CSV-driven)
-Files: config/modules.csv, config/patterns.csv ; oconfig/oconfig-1.06.lsp parses them ;
-ogeo/ogeo-1.08.lsp (shared lib, no command).
+Files: config/modules.csv, config/patterns.csv ; oconfig/oconfig-1.07.lsp parses them ;
+ogeo/ogeo-1.09.lsp (shared lib, no command).
 Latest confirmed: parse + ogeo helpers PASS headless (1 module, 5 patterns; module-dims snaps to
 canonical; flood-fill isolates one array of two; north-bay row-positions 0/57.91/116.82/175.73).
 
@@ -290,29 +290,27 @@ canonical; flood-fill isolates one array of two; north-bay row-positions 0/57.91
   non-paper-background (DXF id 1), twist-aware; clipped/3D viewports kept permissively. SAFE: filter
   off (*ocfg-filter-viewport* nil), no viewports in the drawing, or a filter that would drop ALL
   modules -> keeps everything. Reports the count ignored. Headless: load + window math + twist tested;
-  live VLA viewport read on a real sheet UNTESTED.
-- [1.08 untested] Visibility filter is now SCOPED TO ONE SHEET. _ogeo-vp-windows builds windows only
-  from the viewports on the layout named *ocfg-module-sheet* (oconfig, default "E-1.0"; wcmatch) --
-  refactored into _ogeo-vp-window-of (one ename), _ogeo-vp-windows-all (DXF scan, every layout) and
-  _ogeo-vp-windows-sheet (VLA Layouts iteration, by name). GRACEFUL FALLBACK: if *ocfg-module-sheet*
-  is nil, the sheet is absent/frames nothing, or there's no COM doc (headless), it drops to
-  any-layout windows -- never strands modules. So a "real module" defaults to one documented on E-1.0.
-- [1.08 untested] O-ZONE override: _ogeo-pt-in-zone + _ogeo-zone-keep (centre = nth 2) gate the
-  shared collector. _ogeo-all-modules now ends with a cond: an active *ozone-bounds* rectangle
-  REPLACES the sheet/viewport filter (manual fallback for multi-array model space), else the E-1.0
-  sheet filter applies. Inert/back-compatible when *ozone-bounds* is unbound/nil (set by O-ZONE).
+  live VLA viewport read on a real sheet UNTESTED.  (Filter REMOVED in ogeo-1.09 -- see below.)
+- [1.09 works (headless)] Viewport / E-1.0 visibility filter REMOVED. Both the 1.02 _ogeo-filter-shown
+  gate and the 1.08 sheet-scoping (_ogeo-vp-window-of / _ogeo-vp-windows-all / _ogeo-vp-windows-sheet
+  / _ogeo-vp-windows / _ogeo-pt-shown-p) never produced windows on a real sheet -- confirmed live:
+  E1.0win=0, ALLwin=0, so the keep-all safety always fired and tools "counted everything." Deleted in
+  ogeo-1.09. _ogeo-all-modules now returns the footprint-gated real modules; an active O-ZONE
+  rectangle (_ogeo-zone-keep / _ogeo-pt-in-zone) scopes the set. Flags *ocfg-filter-viewport* /
+  *ocfg-module-sheet* removed (oconfig-1.07). Headless: load + 227 real / 103 zoned on TSC11590.
 
 ---
 
 ## O-CONFIG
-File: oconfig/oconfig-1.06.lsp
-Latest confirmed: 1.06 untested (1.0 works)
+File: oconfig/oconfig-1.07.lsp
+Latest confirmed: 1.07 untested (1.0 works)
 
 ### Current Features
 - [1.0 works] Sets 18 *ocfg-layer-* globals for all Opal layer names
 - [1.0 works] Loaded first by O-LOAD before any tool; single edit point for re-deployment
-- [1.06 untested] *ocfg-module-sheet* "E-1.0" -- the layout whose viewport defines the "real"
-  modules (consumed by ogeo's _ogeo-vp-windows). Wildcard ok; nil = any layout (old behavior).
+- [1.07] *ocfg-module-sheet* and *ocfg-filter-viewport* REMOVED -- they fed the viewport / E-1.0
+  visibility filter, deleted in ogeo-1.09 (it never produced windows on a real sheet). Module set
+  is now all footprint-gated real modules; scope with O-ZONE. (*ocfg-module-sheet* was added in 1.06.)
 - [1.02 untested] *ocfg-layer-dc* repointed "PV-DC-PATH" -> "E-STRINGING" (O-DC string path layer)
 - [1.03 untested] *ocfg-layer-modules* "PV-MODS" (module source layer, confirmed live)
 - [1.04 untested] modules.csv/patterns.csv -> *ocfg-modules* / *ocfg-patterns* (see Config + ogeo)
@@ -1380,8 +1378,9 @@ Latest confirmed: 1.0 untested
 
 ## O-ZONE
 Commands: O-ZONE, OZONE
-File: ozone/ozone-1.0.lsp
-Latest confirmed: 1.0 untested
+File: ozone/ozone-1.01.lsp
+Latest confirmed: 1.0 untested (1.01: house-rule cleanup -- _ozone-bbox-of tracks min/max in the
+walk instead of (apply 'min/'max ...); headless load-checked)
 
 ### Current Features
 - [1.0 untested] O-ZONE [Set/Clear/Show]. SET rough-drags a rectangle (getpoint+getcorner),
@@ -1390,10 +1389,11 @@ Latest confirmed: 1.0 untested
   SCALED by *ozone-margin* (default 2.0) about its centre. So a loose drag around one array
   yields a forgiving zone that won't reach a distant second array. Reports the in-zone count and
   grip-highlights the modules (sssetfirst).
-- [1.0 untested] The zone is the MANUAL fallback for the default "module = visible on E-1.0"
-  sheet rule (oconfig *ocfg-module-sheet*). While set, it OVERRIDES that rule: every tool routed
-  through ogeo (_ogeo-all-modules -> O-MODSIZE, SSA/SSM, click->array) and O-SET see only modules
-  inside the rectangle. CLEAR releases it (restores the E-1.0 default); SHOW re-reports/highlights.
+- [1.0 untested] The zone SCOPES the module set: while set, every tool routed through ogeo
+  (_ogeo-all-modules -> O-MODSIZE, SSA/SSM, click->array) and O-SET see only modules whose centre is
+  inside the rectangle. No zone -> all footprint-gated real modules. CLEAR releases it; SHOW
+  re-reports/highlights. This is the way to exclude clutter / a second array / parked template copies
+  on the module layer (it replaces the removed viewport/E-1.0 visibility filter).
 - [1.0 untested] Self-contained: *ozone-bounds* / *ozone-margin* live here; the filter helpers
   (_ogeo-pt-in-zone / _ogeo-zone-keep) live in ogeo (always loaded), so ogeo never depends on
   ozone and the gate is inert when no zone is set.

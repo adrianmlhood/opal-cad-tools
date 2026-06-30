@@ -1,0 +1,6 @@
+SECURELOAD
+0
+(load "C:/Users/adria/CAD/Automations/opal-tools/ofeed/ofeed-2.35.lsp")
+(load "C:/Users/adria/CAD/Automations/opal-tools/tests/ofeed/ofeed-sweep.lsp")
+OFSWEEP
+QUIT

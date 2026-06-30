@@ -1,0 +1,24 @@
+﻿Total simulations parsed : 23421
+  NOT-PERMITTED rows     : 30  (term75 above ~70C ambient -- expected; sized cleanly elsewhere)
+  conduit >4in overflow  : 0  (load exceeds one 4in EMT run -- capability boundary, not a sizing bug)
+
+INVARIANT CHECKS:
+  ocp_exact                    PASS
+  ocp_ge_i125                  PASS
+  adjamp_ge_ocp                PASS
+  adjamp_recompute             PASS
+  basedamp_ge_ocp_hot          PASS
+  wire_sets_mismatch           PASS
+  wire_np_mismatch             PASS
+  single_run_not_CU            PASS
+  parallel_not_AL              PASS
+  neutral_missing              PASS
+  neutral_present_unwanted     PASS
+  vd_volts_formula             PASS
+  vd_pct_formula               PASS
+  vd_negative                  PASS
+  unknown_conductor            PASS
+  NP_boundary_wrong            PASS
+  monotonic_load(suiteA)       PASS
+
+TOTAL INVARIANT VIOLATIONS: 0

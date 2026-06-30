@@ -1,0 +1,14 @@
+#source: NEC Chapter 9 Table 4, EMT, total internal area (100%), sq in
+#note: trade_size is the display label; code appends " EMT" in output
+#cols: trade_size,internal_area_in2
+trade_size,internal_area_in2
+1/2",0.304
+3/4",0.533
+1",0.864
+1 1/4",1.496
+1 1/2",2.036
+2",3.356
+2 1/2",5.858
+3",8.846
+3 1/2",11.545
+4",14.753

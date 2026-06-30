@@ -7,7 +7,9 @@ Root: `C:\Users\adria\CAD\Automations\layer-kit\`
 
 ## Commands
 
-**6 commands** (each multi-purpose one has a `[sub-option]` prompt):
+**Active commands** (each multi-purpose one has a `[sub-option]` prompt). Note: `LK-BYLAYER` /
+`LK-SKIP` are currently **shelved** — their folder is under `archive/`, so `LK-LOAD` does not load
+them.
 
 | Command | What it does |
 |---|---|
@@ -17,7 +19,10 @@ Root: `C:\Users\adria\CAD\Automations\layer-kit\`
 | `LK-SKIP` | Manage ByLayer exclusions: `[Add` (pick blocks/elements) `/ Layer` (pick objects → their layers) `/ List / Clear]`. Saved across sessions (registry) / in the drawing. |
 | `LK-STD` | Layer standards: `[Save` (export current layers' look to `PV_layer_standards.csv`) `/ Set` (apply it; also auto-runs in cleanup) `/ Config` (set the CSV folder, remembered)`]`. |
 | `LK-FILTER` | Layer **group filters**: `[Set` (build from `PV_layer_filters.csv`, creating missing layers) `/ Save` (export current filters to the CSV)`]`. Reopen the drawing to see filters. |
+| `LK-DIMS` | Brings all `DIMENSION`s to the front and applies a `DIMTFILL` background mask so dims read cleanly over hatches/geometry. |
+| `LK-ZEROBLOCK` / `LK-ZB` | Pick one block reference → recursively move **all** nested geometry (every level of nested blocks) onto layer `0`, so the block draws in its insertion layer. Edits the shared block definition; the clicked reference keeps its own layer. |
 | `LK-LOAD` / `LKLOAD` | Reloads all LayerKit tools. |
+| `LK-BYLAYER` / `LK-SKIP` | *(Currently shelved — folder archived, not loaded.)* Force every entity's color ByLayer everywhere incl. block defs; `LK-SKIP` manages exclusions. |
 
 > **Excluding things from ByLayer:** `LK-BYLAYER` starts by asking you to pick blocks/elements
 > to exclude (Enter to skip and use the saved list). Use `LK-SKIP` to manage the lists: **Add**
@@ -62,12 +67,12 @@ LayerKit\
   CLAUDE.md                context for AI sessions
   FEATURES.md              per-tool feature registry (what's tested vs not)
   lkload\                  LK-LOAD master loader (scans tool folders, loads highest version)
-  lkcleanup\               LK-CLEANUP (highest .lsp = active)
-  lkbylayer\               LK-BYLAYER + LK-SKIP
-  lkstd\                   LK-STD     lkfilter\  LK-FILTER
+  lkcleanup\               LK-CLEANUP + LK-APPLY (highest .lsp = active)
+  lkstd\                   LK-STD        lkfilter\     LK-FILTER
+  lkdims\                  LK-DIMS       lkzeroblock\  LK-ZEROBLOCK
   config\                  CSVs: PV_static_mappings, PV_keywords, PV_layer_standards, PV_layer_filters
-  archive\                 parked artifacts (old zips, flow diagram, old logs,
-                           pre-LK-rebrand\ = the old PV-named tool folders)
+  archive\                 parked artifacts (old zips, flow diagram, old logs),
+                           pre-LK-rebrand\ = old PV-named folders, lkbylayer\ = LK-BYLAYER/LK-SKIP (shelved)
 ```
 
 ## The CSVs
